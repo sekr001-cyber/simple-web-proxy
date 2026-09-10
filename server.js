@@ -1,4 +1,3 @@
-const cookieParser = require("cookie-parser");
 const express = require("express");
 const cheerio = require("cheerio");
 const crypto = require("crypto");
@@ -9,19 +8,13 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
-app.disable("x-powered-by");
-app.use(cookieParser());
-
-app.use(express.static("public"));
-
-
-// =====================================================
-// CONFIG
-// =====================================================
-
 const REQUEST_TIMEOUT = 15000;
 const MAX_URL_LENGTH = 4096;
 const SESSION_COOKIE = "proxy_sid";
+
+app.disable("x-powered-by");
+
+app.use(express.static("public"));
 
 
 // =====================================================
@@ -31,9 +24,7 @@ const SESSION_COOKIE = "proxy_sid";
 const sessions = new Map();
 
 function createSession() {
-
-    const id =
-        crypto.randomBytes(24).toString("hex");
+    const id = crypto.randomBytes(24).toString("hex");
 
     sessions.set(id, {
         createdAt: Date.now(),
@@ -45,95 +36,31 @@ function createSession() {
 }
 
 
-function getOrCreateSession(req, res) {
-
-    let sessionId =
-        req.cookies?.[SESSION_COOKIE];
-
-    if (
-        !sessionId ||
-        !sessions.has(sessionId)
-    ) {
-        sessionId = createSession();
-
-        res.cookie(
-            SESSION_COOKIE,
-            sessionId,
-            {
-                httpOnly: true,
-                sameSite: "lax",
-                secure: process.env.NODE_ENV === "production",
-                maxAge: 1000 * 60 * 60 * 24
-            }
-        );
-    }
-
-    const session =
-        sessions.get(sessionId);
-
-    session.lastUsed = Date.now();
-
-    return {
-        id: sessionId,
-        data: session
-    };
-}
-
-
 // =====================================================
-// SESSION CLEANUP
+// COOKIE HELPERS
 // =====================================================
 
-setInterval(() => {
-
-    const now = Date.now();
-
-    const MAX_AGE =
-        1000 * 60 * 60 * 24;
-
-    for (const [id, session] of sessions) {
-
-        if (
-            now - session.lastUsed >
-            MAX_AGE
-        ) {
-            sessions.delete(id);
-        }
-    }
-
-}, 1000 * 60 * 30);
-
-
-// =====================================================
-// COOKIE PARSER
-// =====================================================
-
-function parseCookieHeader(header) {
-
+function parseCookies(header) {
     const result = {};
 
     if (!header) {
         return result;
     }
 
-    for (
-        const part of header.split(";")
-    ) {
+    for (const part of header.split(";")) {
+        const index = part.indexOf("=");
 
-        const index =
-            part.indexOf("=");
+        if (index === -1) {
+            continue;
+        }
 
-        if (index === -1) continue;
+        const name = part
+            .substring(0, index)
+            .trim();
 
-        const name =
-            part
-                .substring(0, index)
-                .trim();
-
-        const value =
-            part
-                .substring(index + 1)
-                .trim();
+        const value = part
+            .substring(index + 1)
+            .trim();
 
         if (name) {
             result[name] = value;
@@ -144,23 +71,42 @@ function parseCookieHeader(header) {
 }
 
 
-function getTargetCookies(
-    session,
-    hostname
-) {
+function getOrCreateSession(req, res) {
+    const cookies = parseCookies(
+        req.headers.cookie
+    );
 
-    const cookies =
-        session.cookies[hostname];
+    let sessionId = cookies[SESSION_COOKIE];
+
+    if (
+        !sessionId ||
+        !sessions.has(sessionId)
+    ) {
+        sessionId = createSession();
+
+        res.setHeader(
+            "Set-Cookie",
+            `${SESSION_COOKIE}=${sessionId}; Path=/; HttpOnly; SameSite=Lax`
+        );
+    }
+
+    const session = sessions.get(sessionId);
+
+    session.lastUsed = Date.now();
+
+    return session;
+}
+
+
+function getTargetCookies(session, hostname) {
+    const cookies = session.cookies[hostname];
 
     if (!cookies) {
         return "";
     }
 
     return Object.entries(cookies)
-        .map(
-            ([name, value]) =>
-                `${name}=${value}`
-        )
+        .map(([name, value]) => `${name}=${value}`)
         .join("; ");
 }
 
@@ -168,10 +114,9 @@ function getTargetCookies(
 function storeTargetCookies(
     session,
     hostname,
-    headers
+    setCookieHeaders
 ) {
-
-    if (!headers || headers.length === 0) {
+    if (!setCookieHeaders || !setCookieHeaders.length) {
         return;
     }
 
@@ -179,34 +124,49 @@ function storeTargetCookies(
         session.cookies[hostname] = {};
     }
 
-    for (const header of headers) {
+    for (const header of setCookieHeaders) {
+        const firstPart = header.split(";")[0];
 
-        const first =
-            header.split(";")[0];
-
-        const index =
-            first.indexOf("=");
+        const index = firstPart.indexOf("=");
 
         if (index === -1) {
             continue;
         }
 
-        const name =
-            first
-                .substring(0, index)
-                .trim();
+        const name = firstPart
+            .substring(0, index)
+            .trim();
 
-        const value =
-            first
-                .substring(index + 1)
-                .trim();
+        const value = firstPart
+            .substring(index + 1)
+            .trim();
 
-        if (!name) continue;
-
-        session.cookies[hostname][name] =
-            value;
+        if (name) {
+            session.cookies[hostname][name] = value;
+        }
     }
 }
+
+
+// =====================================================
+// SESSION CLEANUP
+// =====================================================
+
+setInterval(() => {
+    const now = Date.now();
+
+    const maxAge =
+        1000 * 60 * 60 * 24;
+
+    for (const [id, session] of sessions) {
+        if (
+            now - session.lastUsed >
+            maxAge
+        ) {
+            sessions.delete(id);
+        }
+    }
+}, 1000 * 60 * 30);
 
 
 // =====================================================
@@ -214,7 +174,6 @@ function storeTargetCookies(
 // =====================================================
 
 function proxyUrl(url) {
-
     return (
         "/proxy?url=" +
         encodeURIComponent(url)
@@ -222,17 +181,12 @@ function proxyUrl(url) {
 }
 
 
-function makeAbsolute(
-    value,
-    baseUrl
-) {
-
+function makeAbsolute(value, baseUrl) {
     if (!value) {
         return null;
     }
 
-    const trimmed =
-        value.trim();
+    const trimmed = value.trim();
 
     if (
         trimmed.startsWith("#") ||
@@ -246,12 +200,10 @@ function makeAbsolute(
     }
 
     try {
-
-        const url =
-            new URL(
-                trimmed,
-                baseUrl
-            );
+        const url = new URL(
+            trimmed,
+            baseUrl
+        );
 
         if (
             url.protocol !== "http:" &&
@@ -263,20 +215,17 @@ function makeAbsolute(
         return url.href;
 
     } catch {
-
         return null;
     }
 }
 
 
 // =====================================================
-// PRIVATE NETWORK PROTECTION
+// TARGET SAFETY
 // =====================================================
 
 function isPrivateIPv4(ip) {
-
-    const parts =
-        ip.split(".").map(Number);
+    const parts = ip.split(".").map(Number);
 
     if (parts.length !== 4) {
         return false;
@@ -296,7 +245,6 @@ function isPrivateIPv4(ip) {
 
 
 function isPrivateIPv6(ip) {
-
     const normalized =
         ip.toLowerCase();
 
@@ -310,9 +258,7 @@ function isPrivateIPv6(ip) {
 
 
 async function isSafeTarget(url) {
-
-    const hostname =
-        url.hostname;
+    const hostname = url.hostname;
 
     if (
         hostname === "localhost" ||
@@ -322,7 +268,6 @@ async function isSafeTarget(url) {
     }
 
     if (net.isIP(hostname)) {
-
         if (net.isIPv4(hostname)) {
             return !isPrivateIPv4(hostname);
         }
@@ -333,17 +278,14 @@ async function isSafeTarget(url) {
     }
 
     try {
-
-        const addresses =
-            await dns.lookup(
-                hostname,
-                {
-                    all: true
-                }
-            );
+        const addresses = await dns.lookup(
+            hostname,
+            {
+                all: true
+            }
+        );
 
         for (const address of addresses) {
-
             if (
                 net.isIPv4(address.address) &&
                 isPrivateIPv4(address.address)
@@ -362,36 +304,30 @@ async function isSafeTarget(url) {
         return true;
 
     } catch {
-
         return false;
     }
 }
 
 
 // =====================================================
-// FETCH HELPER
+// FETCH TARGET
 // =====================================================
 
 async function fetchTarget(
     targetUrl,
     session
 ) {
-
     const controller =
         new AbortController();
 
-    const timeout =
-        setTimeout(
-            () =>
-                controller.abort(),
-            REQUEST_TIMEOUT
-        );
+    const timeout = setTimeout(
+        () => controller.abort(),
+        REQUEST_TIMEOUT
+    );
 
     const headers = {
-
         "User-Agent":
             "Mozilla/5.0",
-
         "Accept":
             "*/*"
     };
@@ -407,22 +343,17 @@ async function fetchTarget(
     }
 
     try {
-
-        const response =
-            await fetch(
-                targetUrl.href,
-                {
-                    redirect: "follow",
-                    headers,
-                    signal:
-                        controller.signal
-                }
-            );
-
-        return response;
+        return await fetch(
+            targetUrl.href,
+            {
+                redirect: "follow",
+                headers,
+                signal:
+                    controller.signal
+            }
+        );
 
     } finally {
-
         clearTimeout(timeout);
     }
 }
@@ -432,11 +363,7 @@ async function fetchTarget(
 // CSS REWRITER
 // =====================================================
 
-function rewriteCss(
-    css,
-    baseUrl
-) {
-
+function rewriteCss(css, baseUrl) {
     return css.replace(
         /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,
         (
@@ -455,11 +382,9 @@ function rewriteCss(
                 return match;
             }
 
-            return (
-                `url("${proxyUrl(
-                    absolute
-                )}")`
-            );
+            return `url("${proxyUrl(
+                absolute
+            )}")`;
         }
     );
 }
@@ -473,23 +398,17 @@ function rewriteHtml(
     html,
     baseUrl
 ) {
-
-    const $ =
-        cheerio.load(html);
+    const $ = cheerio.load(html);
 
     $("base").remove();
 
 
-    // -----------------------------------------------
     // Links
-    // -----------------------------------------------
-
     $("a[href]").each(
         (_, element) => {
 
             const value =
-                $(element)
-                    .attr("href");
+                $(element).attr("href");
 
             const absolute =
                 makeAbsolute(
@@ -498,7 +417,6 @@ function rewriteHtml(
                 );
 
             if (absolute) {
-
                 $(element).attr(
                     "href",
                     proxyUrl(absolute)
@@ -508,21 +426,17 @@ function rewriteHtml(
     );
 
 
-    // -----------------------------------------------
-    // Images
-    // -----------------------------------------------
-
+    // Images / media
     $(
-        "img[src], " +
-        "video[src], " +
-        "audio[src], " +
+        "img[src]," +
+        "video[src]," +
+        "audio[src]," +
         "source[src]"
     ).each(
         (_, element) => {
 
             const value =
-                $(element)
-                    .attr("src");
+                $(element).attr("src");
 
             const absolute =
                 makeAbsolute(
@@ -531,7 +445,6 @@ function rewriteHtml(
                 );
 
             if (absolute) {
-
                 $(element).attr(
                     "src",
                     proxyUrl(absolute)
@@ -541,18 +454,16 @@ function rewriteHtml(
     );
 
 
-    // -----------------------------------------------
     // srcset
-    // -----------------------------------------------
-
     $("[srcset]").each(
         (_, element) => {
 
             const srcset =
-                $(element)
-                    .attr("srcset");
+                $(element).attr("srcset");
 
-            if (!srcset) return;
+            if (!srcset) {
+                return;
+            }
 
             const rewritten =
                 srcset
@@ -578,9 +489,7 @@ function rewriteHtml(
                         }
 
                         return [
-                            proxyUrl(
-                                absolute
-                            ),
+                            proxyUrl(absolute),
                             ...pieces
                         ].join(" ");
                     })
@@ -594,16 +503,12 @@ function rewriteHtml(
     );
 
 
-    // -----------------------------------------------
     // Scripts
-    // -----------------------------------------------
-
     $("script[src]").each(
         (_, element) => {
 
             const value =
-                $(element)
-                    .attr("src");
+                $(element).attr("src");
 
             const absolute =
                 makeAbsolute(
@@ -612,7 +517,6 @@ function rewriteHtml(
                 );
 
             if (absolute) {
-
                 $(element).attr(
                     "src",
                     proxyUrl(absolute)
@@ -622,16 +526,12 @@ function rewriteHtml(
     );
 
 
-    // -----------------------------------------------
-    // CSS
-    // -----------------------------------------------
-
+    // Stylesheets
     $("link[href]").each(
         (_, element) => {
 
             const value =
-                $(element)
-                    .attr("href");
+                $(element).attr("href");
 
             const absolute =
                 makeAbsolute(
@@ -640,7 +540,6 @@ function rewriteHtml(
                 );
 
             if (absolute) {
-
                 $(element).attr(
                     "href",
                     proxyUrl(absolute)
@@ -650,16 +549,12 @@ function rewriteHtml(
     );
 
 
-    // -----------------------------------------------
     // Forms
-    // -----------------------------------------------
-
     $("form[action]").each(
         (_, element) => {
 
             const value =
-                $(element)
-                    .attr("action");
+                $(element).attr("action");
 
             const absolute =
                 makeAbsolute(
@@ -668,7 +563,6 @@ function rewriteHtml(
                 );
 
             if (absolute) {
-
                 $(element).attr(
                     "action",
                     proxyUrl(absolute)
@@ -678,18 +572,16 @@ function rewriteHtml(
     );
 
 
-    // -----------------------------------------------
     // Inline CSS
-    // -----------------------------------------------
-
     $("[style]").each(
         (_, element) => {
 
             const style =
-                $(element)
-                    .attr("style");
+                $(element).attr("style");
 
-            if (!style) return;
+            if (!style) {
+                return;
+            }
 
             $(element).attr(
                 "style",
@@ -715,19 +607,12 @@ app.get(
     (req, res) => {
 
         res.json({
-
             status: "ok",
-
             version: "V15",
-
-            uptime:
-                Math.round(
-                    process.uptime()
-                ),
-
-            sessions:
-                sessions.size,
-
+            uptime: Math.round(
+                process.uptime()
+            ),
+            sessions: sessions.size,
             timestamp:
                 new Date().toISOString()
         });
@@ -742,7 +627,6 @@ app.get(
 app.get(
     "/test",
     (req, res) => {
-
         res.send(
             "V15 SERVER IS RUNNING"
         );
@@ -759,20 +643,12 @@ app.get(
     (req, res) => {
 
         res.json({
-
             version: "V15",
-
-            node:
-                process.version,
-
-            uptime:
-                Math.round(
-                    process.uptime()
-                ),
-
-            sessions:
-                sessions.size,
-
+            node: process.version,
+            uptime: Math.round(
+                process.uptime()
+            ),
+            sessions: sessions.size,
             memory:
                 process.memoryUsage()
         });
@@ -792,7 +668,6 @@ app.get(
             req.query.url;
 
         if (!target) {
-
             return res
                 .status(400)
                 .json({
@@ -805,7 +680,6 @@ app.get(
             target.length >
             MAX_URL_LENGTH
         ) {
-
             return res
                 .status(414)
                 .json({
@@ -817,12 +691,9 @@ app.get(
         let targetUrl;
 
         try {
-
             targetUrl =
                 new URL(target);
-
         } catch {
-
             return res
                 .status(400)
                 .json({
@@ -832,12 +703,9 @@ app.get(
         }
 
         if (
-            targetUrl.protocol !==
-                "http:" &&
-            targetUrl.protocol !==
-                "https:"
+            targetUrl.protocol !== "http:" &&
+            targetUrl.protocol !== "https:"
         ) {
-
             return res
                 .status(400)
                 .json({
@@ -851,7 +719,6 @@ app.get(
                 targetUrl
             ))
         ) {
-
             return res
                 .status(403)
                 .json({
@@ -860,9 +727,7 @@ app.get(
                 });
         }
 
-        const {
-            data: session
-        } =
+        const session =
             getOrCreateSession(
                 req,
                 res
@@ -877,16 +742,13 @@ app.get(
                 );
 
             const finalUrl =
-                new URL(
-                    response.url
-                );
+                new URL(response.url);
 
             const setCookies =
-                typeof response.headers
-                    .getSetCookie ===
-                "function"
-                    ? response.headers
-                        .getSetCookie()
+                typeof response
+                    .headers
+                    .getSetCookie === "function"
+                    ? response.headers.getSetCookie()
                     : [];
 
             storeTargetCookies(
@@ -908,7 +770,6 @@ app.get(
                 );
 
             if (contentType) {
-
                 res.setHeader(
                     "Content-Type",
                     contentType
@@ -930,7 +791,6 @@ app.get(
                 error.name ===
                 "AbortError"
             ) {
-
                 return res
                     .status(504)
                     .json({
@@ -962,7 +822,6 @@ app.get(
             req.query.url;
 
         if (!target) {
-
             return res
                 .status(400)
                 .send(
@@ -974,7 +833,6 @@ app.get(
             target.length >
             MAX_URL_LENGTH
         ) {
-
             return res
                 .status(414)
                 .send(
@@ -985,12 +843,9 @@ app.get(
         let targetUrl;
 
         try {
-
             targetUrl =
                 new URL(target);
-
         } catch {
-
             return res
                 .status(400)
                 .send(
@@ -999,12 +854,9 @@ app.get(
         }
 
         if (
-            targetUrl.protocol !==
-                "http:" &&
-            targetUrl.protocol !==
-                "https:"
+            targetUrl.protocol !== "http:" &&
+            targetUrl.protocol !== "https:"
         ) {
-
             return res
                 .status(400)
                 .send(
@@ -1017,7 +869,6 @@ app.get(
                 targetUrl
             ))
         ) {
-
             return res
                 .status(403)
                 .send(
@@ -1025,15 +876,18 @@ app.get(
                 );
         }
 
-        const {
-            data: session
-        } =
+        const session =
             getOrCreateSession(
                 req,
                 res
             );
 
         try {
+
+            console.log(
+                "Proxy request:",
+                targetUrl.href
+            );
 
             const response =
                 await fetchTarget(
@@ -1042,16 +896,13 @@ app.get(
                 );
 
             const finalUrl =
-                new URL(
-                    response.url
-                );
+                new URL(response.url);
 
             const setCookies =
-                typeof response.headers
-                    .getSetCookie ===
-                "function"
-                    ? response.headers
-                        .getSetCookie()
+                typeof response
+                    .headers
+                    .getSetCookie === "function"
+                    ? response.headers.getSetCookie()
                     : [];
 
             storeTargetCookies(
@@ -1061,11 +912,10 @@ app.get(
             );
 
             console.log(
-                `[PROXY] ${response.status} ${finalUrl.href}`
+                `Upstream status: ${response.status}`
             );
 
             if (!response.ok) {
-
                 return res
                     .status(response.status)
                     .send(
@@ -1079,10 +929,7 @@ app.get(
                 ) || "";
 
 
-            // -----------------------------------------
             // HTML
-            // -----------------------------------------
-
             if (
                 contentType.includes(
                     "text/html"
@@ -1109,10 +956,7 @@ app.get(
             }
 
 
-            // -----------------------------------------
             // CSS
-            // -----------------------------------------
-
             if (
                 contentType.includes(
                     "text/css"
@@ -1139,26 +983,20 @@ app.get(
             }
 
 
-            // -----------------------------------------
-            // Everything else
-            // -----------------------------------------
-
+            // Other resources
             const buffer =
                 Buffer.from(
                     await response.arrayBuffer()
                 );
 
             if (contentType) {
-
                 res.setHeader(
                     "Content-Type",
                     contentType
                 );
             }
 
-            return res.send(
-                buffer
-            );
+            return res.send(buffer);
 
         } catch (error) {
 
@@ -1171,7 +1009,6 @@ app.get(
                 error.name ===
                 "AbortError"
             ) {
-
                 return res
                     .status(504)
                     .send(
@@ -1197,10 +1034,8 @@ app.use(
     (req, res) => {
 
         res.status(404).json({
-
             error:
                 "Route not found",
-
             path:
                 req.path
         });
@@ -1209,28 +1044,7 @@ app.use(
 
 
 // =====================================================
-// ERROR HANDLER
-// =====================================================
-
-app.use(
-    (error, req, res, next) => {
-
-        console.error(
-            "Unhandled error:",
-            error
-        );
-
-        res.status(500).json({
-
-            error:
-                "Internal server error"
-        });
-    }
-);
-
-
-// =====================================================
-// START
+// SERVER
 // =====================================================
 
 app.listen(
