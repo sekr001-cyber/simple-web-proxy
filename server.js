@@ -124,11 +124,7 @@ function getTargetCookies(session, hostname) {
 }
 
 
-function storeTargetCookies(
-    session,
-    hostname,
-    setCookieHeaders
-) {
+function storeTargetCookies(session, hostname, setCookieHeaders) {
     if (!setCookieHeaders || !setCookieHeaders.length) {
         return;
     }
@@ -165,8 +161,7 @@ function addHistory(session, url, status) {
         time: new Date().toISOString()
     });
 
-    session.history =
-        session.history.slice(0, 50);
+    session.history = session.history.slice(0, 50);
 }
 
 
@@ -333,8 +328,14 @@ async function fetchTarget(targetUrl, session) {
     );
 
     const headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "*/*"
+        "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36",
+
+        "Accept":
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+
+        "Accept-Language":
+            "sv-SE,sv;q=0.9,en-US;q=0.8,en;q=0.7"
     };
 
     const cookies = getTargetCookies(
@@ -560,7 +561,7 @@ function rewriteHtml(html, baseUrl) {
 app.get("/health", (req, res) => {
     res.json({
         status: "ok",
-        version: "V16",
+        version: "V17",
         uptime: Math.round(process.uptime()),
         sessions: sessions.size,
         timestamp: new Date().toISOString()
@@ -569,13 +570,13 @@ app.get("/health", (req, res) => {
 
 
 app.get("/test", (req, res) => {
-    res.send("V16 SERVER IS RUNNING");
+    res.send("V17 SERVER IS RUNNING");
 });
 
 
 app.get("/debug", (req, res) => {
     res.json({
-        version: "V16",
+        version: "V17",
         node: process.version,
         uptime: Math.round(process.uptime()),
         sessions: sessions.size,
@@ -637,6 +638,7 @@ app.post("/api/bookmark", (req, res) => {
 // =====================================================
 
 app.get("/search", (req, res) => {
+
     const query =
         String(req.query.q || "").trim();
 
@@ -647,20 +649,16 @@ app.get("/search", (req, res) => {
     }
 
     /*
-     * Search requests are deliberately kept separate
-     * from the normal proxy route.
-     *
-     * The frontend can use this route when the user
-     * enters search terms instead of a URL.
+     * Search is opened directly in the user's browser.
+     * This avoids sending Google through our proxy,
+     * which can result in 403 responses.
      */
 
     const searchUrl =
         "https://www.google.com/search?q=" +
         encodeURIComponent(query);
 
-    res.redirect(
-        proxyUrl(searchUrl)
-    );
+    res.redirect(searchUrl);
 });
 
 
@@ -817,7 +815,7 @@ app.get("/proxy", async (req, res) => {
 
             res.setHeader(
                 "X-Proxy-Version",
-                "V16"
+                "V17"
             );
 
             res.setHeader(
@@ -879,7 +877,7 @@ app.get("/proxy", async (req, res) => {
 
         res.setHeader(
             "X-Proxy-Version",
-            "V16"
+            "V17"
         );
 
         return res.send(
@@ -931,6 +929,6 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
     console.log(
-        `V16 server running on port ${PORT}`
+        `V17 server running on port ${PORT}`
     );
 });
