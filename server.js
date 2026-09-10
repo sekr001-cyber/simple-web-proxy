@@ -14,6 +14,9 @@ const SESSION_COOKIE = "proxy_sid";
 
 app.disable("x-powered-by");
 
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+
 app.use(express.static("public"));
 
 
@@ -29,7 +32,9 @@ function createSession() {
     sessions.set(id, {
         createdAt: Date.now(),
         lastUsed: Date.now(),
-        cookies: {}
+        cookies: {},
+        history: [],
+        bookmarks: []
     });
 
     return id;
@@ -37,7 +42,7 @@ function createSession() {
 
 
 // =====================================================
-// COOKIE HELPERS
+// COOKIE / SESSION
 // =====================================================
 
 function parseCookies(header) {
@@ -50,17 +55,10 @@ function parseCookies(header) {
     for (const part of header.split(";")) {
         const index = part.indexOf("=");
 
-        if (index === -1) {
-            continue;
-        }
+        if (index === -1) continue;
 
-        const name = part
-            .substring(0, index)
-            .trim();
-
-        const value = part
-            .substring(index + 1)
-            .trim();
+        const name = part.substring(0, index).trim();
+        const value = part.substring(index + 1).trim();
 
         if (name) {
             result[name] = value;
@@ -72,16 +70,11 @@ function parseCookies(header) {
 
 
 function getOrCreateSession(req, res) {
-    const cookies = parseCookies(
-        req.headers.cookie
-    );
+    const cookies = parseCookies(req.headers.cookie);
 
     let sessionId = cookies[SESSION_COOKIE];
 
-    if (
-        !sessionId ||
-        !sessions.has(sessionId)
-    ) {
+    if (!sessionId || !sessions.has(sessionId)) {
         sessionId = createSession();
 
         res.setHeader(
@@ -97,6 +90,26 @@ function getOrCreateSession(req, res) {
     return session;
 }
 
+
+// =====================================================
+// SESSION CLEANUP
+// =====================================================
+
+setInterval(() => {
+    const now = Date.now();
+    const maxAge = 1000 * 60 * 60 * 24;
+
+    for (const [id, session] of sessions) {
+        if (now - session.lastUsed > maxAge) {
+            sessions.delete(id);
+        }
+    }
+}, 1000 * 60 * 30);
+
+
+// =====================================================
+// TARGET COOKIES
+// =====================================================
 
 function getTargetCookies(session, hostname) {
     const cookies = session.cookies[hostname];
@@ -129,17 +142,10 @@ function storeTargetCookies(
 
         const index = firstPart.indexOf("=");
 
-        if (index === -1) {
-            continue;
-        }
+        if (index === -1) continue;
 
-        const name = firstPart
-            .substring(0, index)
-            .trim();
-
-        const value = firstPart
-            .substring(index + 1)
-            .trim();
+        const name = firstPart.substring(0, index).trim();
+        const value = firstPart.substring(index + 1).trim();
 
         if (name) {
             session.cookies[hostname][name] = value;
@@ -149,24 +155,38 @@ function storeTargetCookies(
 
 
 // =====================================================
-// SESSION CLEANUP
+// HISTORY
 // =====================================================
 
-setInterval(() => {
-    const now = Date.now();
+function addHistory(session, url, status) {
+    session.history.unshift({
+        url,
+        status,
+        time: new Date().toISOString()
+    });
 
-    const maxAge =
-        1000 * 60 * 60 * 24;
+    session.history =
+        session.history.slice(0, 50);
+}
 
-    for (const [id, session] of sessions) {
-        if (
-            now - session.lastUsed >
-            maxAge
-        ) {
-            sessions.delete(id);
-        }
+
+// =====================================================
+// BOOKMARKS
+// =====================================================
+
+function addBookmark(session, url, title = url) {
+    const exists = session.bookmarks.some(
+        item => item.url === url
+    );
+
+    if (!exists) {
+        session.bookmarks.unshift({
+            url,
+            title,
+            time: new Date().toISOString()
+        });
     }
-}, 1000 * 60 * 30);
+}
 
 
 // =====================================================
@@ -174,10 +194,7 @@ setInterval(() => {
 // =====================================================
 
 function proxyUrl(url) {
-    return (
-        "/proxy?url=" +
-        encodeURIComponent(url)
-    );
+    return "/proxy?url=" + encodeURIComponent(url);
 }
 
 
@@ -200,10 +217,7 @@ function makeAbsolute(value, baseUrl) {
     }
 
     try {
-        const url = new URL(
-            trimmed,
-            baseUrl
-        );
+        const url = new URL(trimmed, baseUrl);
 
         if (
             url.protocol !== "http:" &&
@@ -221,7 +235,7 @@ function makeAbsolute(value, baseUrl) {
 
 
 // =====================================================
-// TARGET SAFETY
+// PRIVATE NETWORK PROTECTION
 // =====================================================
 
 function isPrivateIPv4(ip) {
@@ -245,8 +259,7 @@ function isPrivateIPv4(ip) {
 
 
 function isPrivateIPv6(ip) {
-    const normalized =
-        ip.toLowerCase();
+    const normalized = ip.toLowerCase();
 
     return (
         normalized === "::1" ||
@@ -280,9 +293,7 @@ async function isSafeTarget(url) {
     try {
         const addresses = await dns.lookup(
             hostname,
-            {
-                all: true
-            }
+            { all: true }
         );
 
         for (const address of addresses) {
@@ -310,15 +321,11 @@ async function isSafeTarget(url) {
 
 
 // =====================================================
-// FETCH TARGET
+// FETCH
 // =====================================================
 
-async function fetchTarget(
-    targetUrl,
-    session
-) {
-    const controller =
-        new AbortController();
+async function fetchTarget(targetUrl, session) {
+    const controller = new AbortController();
 
     const timeout = setTimeout(
         () => controller.abort(),
@@ -326,17 +333,14 @@ async function fetchTarget(
     );
 
     const headers = {
-        "User-Agent":
-            "Mozilla/5.0",
-        "Accept":
-            "*/*"
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "*/*"
     };
 
-    const cookies =
-        getTargetCookies(
-            session,
-            targetUrl.hostname
-        );
+    const cookies = getTargetCookies(
+        session,
+        targetUrl.hostname
+    );
 
     if (cookies) {
         headers.Cookie = cookies;
@@ -348,8 +352,7 @@ async function fetchTarget(
             {
                 redirect: "follow",
                 headers,
-                signal:
-                    controller.signal
+                signal: controller.signal
             }
         );
 
@@ -360,70 +363,55 @@ async function fetchTarget(
 
 
 // =====================================================
-// CSS REWRITER
+// CSS REWRITE
 // =====================================================
 
 function rewriteCss(css, baseUrl) {
     return css.replace(
         /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,
-        (
-            match,
-            quote,
-            resource
-        ) => {
+        (match, quote, resource) => {
 
-            const absolute =
-                makeAbsolute(
-                    resource,
-                    baseUrl
-                );
+            const absolute = makeAbsolute(
+                resource,
+                baseUrl
+            );
 
             if (!absolute) {
                 return match;
             }
 
-            return `url("${proxyUrl(
-                absolute
-            )}")`;
+            return `url("${proxyUrl(absolute)}")`;
         }
     );
 }
 
 
 // =====================================================
-// HTML REWRITER
+// HTML REWRITE
 // =====================================================
 
-function rewriteHtml(
-    html,
-    baseUrl
-) {
+function rewriteHtml(html, baseUrl) {
     const $ = cheerio.load(html);
 
     $("base").remove();
 
 
     // Links
-    $("a[href]").each(
-        (_, element) => {
+    $("a[href]").each((_, element) => {
+        const value = $(element).attr("href");
 
-            const value =
-                $(element).attr("href");
+        const absolute = makeAbsolute(
+            value,
+            baseUrl
+        );
 
-            const absolute =
-                makeAbsolute(
-                    value,
-                    baseUrl
-                );
-
-            if (absolute) {
-                $(element).attr(
-                    "href",
-                    proxyUrl(absolute)
-                );
-            }
+        if (absolute) {
+            $(element).attr(
+                "href",
+                proxyUrl(absolute)
+            );
         }
-    );
+    });
 
 
     // Images / media
@@ -432,166 +420,133 @@ function rewriteHtml(
         "video[src]," +
         "audio[src]," +
         "source[src]"
-    ).each(
-        (_, element) => {
+    ).each((_, element) => {
 
-            const value =
-                $(element).attr("src");
+        const value = $(element).attr("src");
 
-            const absolute =
-                makeAbsolute(
-                    value,
-                    baseUrl
-                );
+        const absolute = makeAbsolute(
+            value,
+            baseUrl
+        );
 
-            if (absolute) {
-                $(element).attr(
-                    "src",
-                    proxyUrl(absolute)
-                );
-            }
+        if (absolute) {
+            $(element).attr(
+                "src",
+                proxyUrl(absolute)
+            );
         }
-    );
+    });
 
 
     // srcset
-    $("[srcset]").each(
-        (_, element) => {
+    $("[srcset]").each((_, element) => {
+        const srcset = $(element).attr("srcset");
 
-            const srcset =
-                $(element).attr("srcset");
-
-            if (!srcset) {
-                return;
-            }
-
-            const rewritten =
-                srcset
-                    .split(",")
-                    .map(part => {
-
-                        const pieces =
-                            part
-                                .trim()
-                                .split(/\s+/);
-
-                        const resource =
-                            pieces.shift();
-
-                        const absolute =
-                            makeAbsolute(
-                                resource,
-                                baseUrl
-                            );
-
-                        if (!absolute) {
-                            return part;
-                        }
-
-                        return [
-                            proxyUrl(absolute),
-                            ...pieces
-                        ].join(" ");
-                    })
-                    .join(", ");
-
-            $(element).attr(
-                "srcset",
-                rewritten
-            );
+        if (!srcset) {
+            return;
         }
-    );
+
+        const rewritten = srcset
+            .split(",")
+            .map(part => {
+
+                const pieces =
+                    part.trim().split(/\s+/);
+
+                const resource =
+                    pieces.shift();
+
+                const absolute =
+                    makeAbsolute(
+                        resource,
+                        baseUrl
+                    );
+
+                if (!absolute) {
+                    return part;
+                }
+
+                return [
+                    proxyUrl(absolute),
+                    ...pieces
+                ].join(" ");
+            })
+            .join(", ");
+
+        $(element).attr(
+            "srcset",
+            rewritten
+        );
+    });
 
 
     // Scripts
-    $("script[src]").each(
-        (_, element) => {
+    $("script[src]").each((_, element) => {
+        const value = $(element).attr("src");
 
-            const value =
-                $(element).attr("src");
+        const absolute = makeAbsolute(
+            value,
+            baseUrl
+        );
 
-            const absolute =
-                makeAbsolute(
-                    value,
-                    baseUrl
-                );
-
-            if (absolute) {
-                $(element).attr(
-                    "src",
-                    proxyUrl(absolute)
-                );
-            }
+        if (absolute) {
+            $(element).attr(
+                "src",
+                proxyUrl(absolute)
+            );
         }
-    );
+    });
 
 
-    // Stylesheets
-    $("link[href]").each(
-        (_, element) => {
+    // CSS
+    $("link[href]").each((_, element) => {
+        const value = $(element).attr("href");
 
-            const value =
-                $(element).attr("href");
+        const absolute = makeAbsolute(
+            value,
+            baseUrl
+        );
 
-            const absolute =
-                makeAbsolute(
-                    value,
-                    baseUrl
-                );
-
-            if (absolute) {
-                $(element).attr(
-                    "href",
-                    proxyUrl(absolute)
-                );
-            }
+        if (absolute) {
+            $(element).attr(
+                "href",
+                proxyUrl(absolute)
+            );
         }
-    );
+    });
 
 
     // Forms
-    $("form[action]").each(
-        (_, element) => {
+    $("form[action]").each((_, element) => {
+        const value = $(element).attr("action");
 
-            const value =
-                $(element).attr("action");
+        const absolute = makeAbsolute(
+            value,
+            baseUrl
+        );
 
-            const absolute =
-                makeAbsolute(
-                    value,
-                    baseUrl
-                );
-
-            if (absolute) {
-                $(element).attr(
-                    "action",
-                    proxyUrl(absolute)
-                );
-            }
+        if (absolute) {
+            $(element).attr(
+                "action",
+                proxyUrl(absolute)
+            );
         }
-    );
+    });
 
 
     // Inline CSS
-    $("[style]").each(
-        (_, element) => {
+    $("[style]").each((_, element) => {
+        const style = $(element).attr("style");
 
-            const style =
-                $(element).attr("style");
-
-            if (!style) {
-                return;
-            }
-
-            $(element).attr(
-                "style",
-                rewriteCss(
-                    style,
-                    baseUrl
-                )
-            );
+        if (!style) {
+            return;
         }
-    );
+
+        $(element).attr(
+            "style",
+            rewriteCss(style, baseUrl)
+        );
+    });
 
 
     return $.html();
@@ -599,461 +554,383 @@ function rewriteHtml(
 
 
 // =====================================================
-// HEALTH
+// HOME / HEALTH
 // =====================================================
 
-app.get(
-    "/health",
-    (req, res) => {
+app.get("/health", (req, res) => {
+    res.json({
+        status: "ok",
+        version: "V16",
+        uptime: Math.round(process.uptime()),
+        sessions: sessions.size,
+        timestamp: new Date().toISOString()
+    });
+});
 
-        res.json({
-            status: "ok",
-            version: "V15",
-            uptime: Math.round(
-                process.uptime()
-            ),
-            sessions: sessions.size,
-            timestamp:
-                new Date().toISOString()
+
+app.get("/test", (req, res) => {
+    res.send("V16 SERVER IS RUNNING");
+});
+
+
+app.get("/debug", (req, res) => {
+    res.json({
+        version: "V16",
+        node: process.version,
+        uptime: Math.round(process.uptime()),
+        sessions: sessions.size,
+        memory: process.memoryUsage()
+    });
+});
+
+
+// =====================================================
+// SESSION API
+// =====================================================
+
+app.get("/api/session", (req, res) => {
+    const session = getOrCreateSession(
+        req,
+        res
+    );
+
+    res.json({
+        history: session.history,
+        bookmarks: session.bookmarks
+    });
+});
+
+
+// =====================================================
+// BOOKMARK API
+// =====================================================
+
+app.post("/api/bookmark", (req, res) => {
+    const session = getOrCreateSession(
+        req,
+        res
+    );
+
+    const { url, title } = req.body;
+
+    if (!url) {
+        return res.status(400).json({
+            error: "Missing URL"
         });
     }
-);
+
+    addBookmark(
+        session,
+        url,
+        title || url
+    );
+
+    res.json({
+        status: "ok",
+        bookmarks: session.bookmarks
+    });
+});
 
 
 // =====================================================
-// TEST
+// SEARCH
 // =====================================================
 
-app.get(
-    "/test",
-    (req, res) => {
-        res.send(
-            "V15 SERVER IS RUNNING"
+app.get("/search", (req, res) => {
+    const query =
+        String(req.query.q || "").trim();
+
+    if (!query) {
+        return res.status(400).send(
+            "Missing search query"
         );
     }
-);
 
+    /*
+     * Search requests are deliberately kept separate
+     * from the normal proxy route.
+     *
+     * The frontend can use this route when the user
+     * enters search terms instead of a URL.
+     */
 
-// =====================================================
-// DEBUG
-// =====================================================
+    const searchUrl =
+        "https://www.google.com/search?q=" +
+        encodeURIComponent(query);
 
-app.get(
-    "/debug",
-    (req, res) => {
-
-        res.json({
-            version: "V15",
-            node: process.version,
-            uptime: Math.round(
-                process.uptime()
-            ),
-            sessions: sessions.size,
-            memory:
-                process.memoryUsage()
-        });
-    }
-);
-
-
-// =====================================================
-// API
-// =====================================================
-
-app.get(
-    "/api",
-    async (req, res) => {
-
-        const target =
-            req.query.url;
-
-        if (!target) {
-            return res
-                .status(400)
-                .json({
-                    error:
-                        "Missing URL"
-                });
-        }
-
-        if (
-            target.length >
-            MAX_URL_LENGTH
-        ) {
-            return res
-                .status(414)
-                .json({
-                    error:
-                        "URL too long"
-                });
-        }
-
-        let targetUrl;
-
-        try {
-            targetUrl =
-                new URL(target);
-        } catch {
-            return res
-                .status(400)
-                .json({
-                    error:
-                        "Invalid URL"
-                });
-        }
-
-        if (
-            targetUrl.protocol !== "http:" &&
-            targetUrl.protocol !== "https:"
-        ) {
-            return res
-                .status(400)
-                .json({
-                    error:
-                        "Only HTTP and HTTPS are supported"
-                });
-        }
-
-        if (
-            !(await isSafeTarget(
-                targetUrl
-            ))
-        ) {
-            return res
-                .status(403)
-                .json({
-                    error:
-                        "Target address is not allowed"
-                });
-        }
-
-        const session =
-            getOrCreateSession(
-                req,
-                res
-            );
-
-        try {
-
-            const response =
-                await fetchTarget(
-                    targetUrl,
-                    session
-                );
-
-            const finalUrl =
-                new URL(response.url);
-
-            const setCookies =
-                typeof response
-                    .headers
-                    .getSetCookie === "function"
-                    ? response.headers.getSetCookie()
-                    : [];
-
-            storeTargetCookies(
-                session,
-                finalUrl.hostname,
-                setCookies
-            );
-
-            console.log(
-                `[API] ${response.status} ${finalUrl.href}`
-            );
-
-            const body =
-                await response.text();
-
-            const contentType =
-                response.headers.get(
-                    "content-type"
-                );
-
-            if (contentType) {
-                res.setHeader(
-                    "Content-Type",
-                    contentType
-                );
-            }
-
-            return res
-                .status(response.status)
-                .send(body);
-
-        } catch (error) {
-
-            console.error(
-                "[API ERROR]",
-                error
-            );
-
-            if (
-                error.name ===
-                "AbortError"
-            ) {
-                return res
-                    .status(504)
-                    .json({
-                        error:
-                            "Target request timed out"
-                    });
-            }
-
-            return res
-                .status(502)
-                .json({
-                    error:
-                        "Could not reach target"
-                });
-        }
-    }
-);
+    res.redirect(
+        proxyUrl(searchUrl)
+    );
+});
 
 
 // =====================================================
 // PROXY
 // =====================================================
 
-app.get(
-    "/proxy",
-    async (req, res) => {
+app.get("/proxy", async (req, res) => {
 
-        const target =
-            req.query.url;
+    const target = req.query.url;
 
-        if (!target) {
-            return res
-                .status(400)
-                .send(
-                    "Missing URL"
-                );
-        }
-
-        if (
-            target.length >
-            MAX_URL_LENGTH
-        ) {
-            return res
-                .status(414)
-                .send(
-                    "URL too long"
-                );
-        }
-
-        let targetUrl;
-
-        try {
-            targetUrl =
-                new URL(target);
-        } catch {
-            return res
-                .status(400)
-                .send(
-                    "Invalid URL"
-                );
-        }
-
-        if (
-            targetUrl.protocol !== "http:" &&
-            targetUrl.protocol !== "https:"
-        ) {
-            return res
-                .status(400)
-                .send(
-                    "Only HTTP and HTTPS are supported"
-                );
-        }
-
-        if (
-            !(await isSafeTarget(
-                targetUrl
-            ))
-        ) {
-            return res
-                .status(403)
-                .send(
-                    "Target address is not allowed"
-                );
-        }
-
-        const session =
-            getOrCreateSession(
-                req,
-                res
-            );
-
-        try {
-
-            console.log(
-                "Proxy request:",
-                targetUrl.href
-            );
-
-            const response =
-                await fetchTarget(
-                    targetUrl,
-                    session
-                );
-
-            const finalUrl =
-                new URL(response.url);
-
-            const setCookies =
-                typeof response
-                    .headers
-                    .getSetCookie === "function"
-                    ? response.headers.getSetCookie()
-                    : [];
-
-            storeTargetCookies(
-                session,
-                finalUrl.hostname,
-                setCookies
-            );
-
-            console.log(
-                `Upstream status: ${response.status}`
-            );
-
-            if (!response.ok) {
-                return res
-                    .status(response.status)
-                    .send(
-                        `Target returned HTTP ${response.status}`
-                    );
-            }
-
-            const contentType =
-                response.headers.get(
-                    "content-type"
-                ) || "";
-
-
-            // HTML
-            if (
-                contentType.includes(
-                    "text/html"
-                )
-            ) {
-
-                const html =
-                    await response.text();
-
-                const rewritten =
-                    rewriteHtml(
-                        html,
-                        finalUrl.href
-                    );
-
-                res.setHeader(
-                    "Content-Type",
-                    "text/html; charset=utf-8"
-                );
-
-                return res.send(
-                    rewritten
-                );
-            }
-
-
-            // CSS
-            if (
-                contentType.includes(
-                    "text/css"
-                )
-            ) {
-
-                const css =
-                    await response.text();
-
-                const rewritten =
-                    rewriteCss(
-                        css,
-                        finalUrl.href
-                    );
-
-                res.setHeader(
-                    "Content-Type",
-                    "text/css; charset=utf-8"
-                );
-
-                return res.send(
-                    rewritten
-                );
-            }
-
-
-            // Other resources
-            const buffer =
-                Buffer.from(
-                    await response.arrayBuffer()
-                );
-
-            if (contentType) {
-                res.setHeader(
-                    "Content-Type",
-                    contentType
-                );
-            }
-
-            return res.send(buffer);
-
-        } catch (error) {
-
-            console.error(
-                "[PROXY ERROR]",
-                error
-            );
-
-            if (
-                error.name ===
-                "AbortError"
-            ) {
-                return res
-                    .status(504)
-                    .send(
-                        "Target request timed out"
-                    );
-            }
-
-            return res
-                .status(502)
-                .send(
-                    "Failed to retrieve target"
-                );
-        }
+    if (!target) {
+        return res.status(400).send(
+            "Missing URL"
+        );
     }
-);
+
+    if (
+        typeof target !== "string" ||
+        target.length > MAX_URL_LENGTH
+    ) {
+        return res.status(414).send(
+            "URL too long"
+        );
+    }
+
+    let targetUrl;
+
+    try {
+        targetUrl = new URL(target);
+
+    } catch {
+        return res.status(400).send(
+            "Invalid URL"
+        );
+    }
+
+    if (
+        targetUrl.protocol !== "http:" &&
+        targetUrl.protocol !== "https:"
+    ) {
+        return res.status(400).send(
+            "Only HTTP and HTTPS are supported"
+        );
+    }
+
+    if (
+        !(await isSafeTarget(targetUrl))
+    ) {
+        return res.status(403).send(
+            "Target address is not allowed"
+        );
+    }
+
+    const session =
+        getOrCreateSession(
+            req,
+            res
+        );
+
+    const startTime = Date.now();
+
+    try {
+
+        console.log(
+            "Proxy request:",
+            targetUrl.href
+        );
+
+        const response =
+            await fetchTarget(
+                targetUrl,
+                session
+            );
+
+        const finalUrl =
+            new URL(response.url);
+
+        const setCookies =
+            typeof response.headers.getSetCookie ===
+            "function"
+                ? response.headers.getSetCookie()
+                : [];
+
+        storeTargetCookies(
+            session,
+            finalUrl.hostname,
+            setCookies
+        );
+
+        const responseTime =
+            Date.now() - startTime;
+
+        console.log(
+            "Upstream status:",
+            response.status
+        );
+
+        console.log(
+            "Response time:",
+            responseTime + "ms"
+        );
+
+        addHistory(
+            session,
+            finalUrl.href,
+            response.status
+        );
+
+
+        // ---------------------------------------------
+        // Upstream error
+        // ---------------------------------------------
+
+        if (!response.ok) {
+
+            return res
+                .status(response.status)
+                .send(
+                    `Target returned HTTP ${response.status}`
+                );
+        }
+
+
+        const contentType =
+            response.headers.get(
+                "content-type"
+            ) || "";
+
+
+        // ---------------------------------------------
+        // HTML
+        // ---------------------------------------------
+
+        if (
+            contentType.includes(
+                "text/html"
+            )
+        ) {
+
+            const html =
+                await response.text();
+
+            const rewritten =
+                rewriteHtml(
+                    html,
+                    finalUrl.href
+                );
+
+            res.setHeader(
+                "Content-Type",
+                "text/html; charset=utf-8"
+            );
+
+            res.setHeader(
+                "X-Proxy-Version",
+                "V16"
+            );
+
+            res.setHeader(
+                "X-Proxy-Response-Time",
+                `${responseTime}ms`
+            );
+
+            return res.send(
+                rewritten
+            );
+        }
+
+
+        // ---------------------------------------------
+        // CSS
+        // ---------------------------------------------
+
+        if (
+            contentType.includes(
+                "text/css"
+            )
+        ) {
+
+            const css =
+                await response.text();
+
+            const rewritten =
+                rewriteCss(
+                    css,
+                    finalUrl.href
+                );
+
+            res.setHeader(
+                "Content-Type",
+                "text/css; charset=utf-8"
+            );
+
+            return res.send(
+                rewritten
+            );
+        }
+
+
+        // ---------------------------------------------
+        // Everything else
+        // ---------------------------------------------
+
+        const buffer =
+            Buffer.from(
+                await response.arrayBuffer()
+            );
+
+        if (contentType) {
+            res.setHeader(
+                "Content-Type",
+                contentType
+            );
+        }
+
+        res.setHeader(
+            "X-Proxy-Version",
+            "V16"
+        );
+
+        return res.send(
+            buffer
+        );
+
+    } catch (error) {
+
+        console.error(
+            "[PROXY ERROR]",
+            error
+        );
+
+        if (
+            error.name ===
+            "AbortError"
+        ) {
+            return res
+                .status(504)
+                .send(
+                    "Target request timed out"
+                );
+        }
+
+        return res
+            .status(502)
+            .send(
+                "Failed to retrieve target"
+            );
+    }
+});
 
 
 // =====================================================
 // 404
 // =====================================================
 
-app.use(
-    (req, res) => {
-
-        res.status(404).json({
-            error:
-                "Route not found",
-            path:
-                req.path
-        });
-    }
-);
+app.use((req, res) => {
+    res.status(404).json({
+        error: "Route not found",
+        path: req.path
+    });
+});
 
 
 // =====================================================
-// SERVER
+// START
 // =====================================================
 
-app.listen(
-    PORT,
-    () => {
-
-        console.log(
-            `V15 server running on port ${PORT}`
-        );
-
-    }
-);
+app.listen(PORT, () => {
+    console.log(
+        `V16 server running on port ${PORT}`
+    );
+});
