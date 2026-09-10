@@ -1,3 +1,4 @@
+const cookieParser = require("cookie-parser");
 const express = require("express");
 const cheerio = require("cheerio");
 const crypto = require("crypto");
@@ -9,6 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.disable("x-powered-by");
+app.use(cookieParser());
 
 app.use(express.static("public"));
 
