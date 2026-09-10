@@ -6,57 +6,19 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static("public"));
 
-/*
- * Convert a URL into a proxy URL.
- */
-function proxyUrl(url) {
-    return "/proxy?url=" + encodeURIComponent(url);
-}
 
-/*
- * Turn a relative URL into an absolute URL.
- */
-function makeAbsolute(value, baseUrl) {
-    if (!value) {
-        return null;
-    }
+// =====================================================
+// TEST
+// =====================================================
 
-    const trimmed = value.trim();
-
-    if (
-        trimmed.startsWith("#") ||
-        trimmed.startsWith("data:") ||
-        trimmed.startsWith("blob:") ||
-        trimmed.startsWith("javascript:") ||
-        trimmed.startsWith("mailto:") ||
-        trimmed.startsWith("tel:")
-    ) {
-        return null;
-    }
-
-    try {
-        const absolute = new URL(trimmed, baseUrl);
-
-        if (
-            absolute.protocol !== "http:" &&
-            absolute.protocol !== "https:"
-        ) {
-            return null;
-        }
-
-        return absolute.href;
-
-    } catch {
-        return null;
-    }
-}
+app.get("/test", (req, res) => {
+    res.send("V5 SERVER IS RUNNING");
+});
 
 
-/*
- * =========================================================
- * API PROXY
- * =========================================================
- */
+// =====================================================
+// API PROXY
+// =====================================================
 
 app.get("/api", async (req, res) => {
 
@@ -87,10 +49,7 @@ app.get("/api", async (req, res) => {
         });
     }
 
-    console.log(
-        "API request:",
-        targetUrl.href
-    );
+    console.log("API request:", targetUrl.href);
 
     try {
 
@@ -98,11 +57,8 @@ app.get("/api", async (req, res) => {
             targetUrl.href,
             {
                 redirect: "follow",
-
                 headers: {
-                    "User-Agent":
-                        "Mozilla/5.0",
-
+                    "User-Agent": "Mozilla/5.0",
                     "Accept":
                         "application/json,text/plain,*/*"
                 }
@@ -114,22 +70,12 @@ app.get("/api", async (req, res) => {
             response.status
         );
 
-        if (!response.ok) {
-            return res.status(
-                response.status
-            ).json({
-                error:
-                    `Target returned HTTP ${response.status}`
-            });
-        }
+        const body = await response.text();
 
         const contentType =
             response.headers.get(
                 "content-type"
-            ) || "";
-
-        const body =
-            await response.text();
+            );
 
         if (contentType) {
             res.setHeader(
@@ -138,28 +84,76 @@ app.get("/api", async (req, res) => {
             );
         }
 
-        return res.send(body);
+        return res
+            .status(response.status)
+            .send(body);
 
     } catch (error) {
 
         console.error(
-            "API proxy error:",
+            "API error:",
             error
         );
 
         return res.status(500).json({
-            error:
-                "Failed to retrieve API data"
+            error: "API request failed"
         });
     }
 });
 
 
-/*
- * =========================================================
- * MAIN WEB PROXY
- * =========================================================
- */
+// =====================================================
+// MAIN PROXY
+// =====================================================
+
+function proxyUrl(url) {
+    return "/proxy?url=" +
+        encodeURIComponent(url);
+}
+
+
+function makeAbsolute(value, baseUrl) {
+
+    if (!value) {
+        return null;
+    }
+
+    const trimmed = value.trim();
+
+    if (
+        trimmed.startsWith("#") ||
+        trimmed.startsWith("data:") ||
+        trimmed.startsWith("blob:") ||
+        trimmed.startsWith("javascript:") ||
+        trimmed.startsWith("mailto:") ||
+        trimmed.startsWith("tel:")
+    ) {
+        return null;
+    }
+
+    try {
+
+        const absolute =
+            new URL(
+                trimmed,
+                baseUrl
+            );
+
+        if (
+            absolute.protocol !== "http:" &&
+            absolute.protocol !== "https:"
+        ) {
+            return null;
+        }
+
+        return absolute.href;
+
+    } catch {
+
+        return null;
+    }
+}
+
 
 app.get("/proxy", async (req, res) => {
 
@@ -174,8 +168,11 @@ app.get("/proxy", async (req, res) => {
     let targetUrl;
 
     try {
+
         targetUrl = new URL(target);
+
     } catch {
+
         return res.status(400).send(
             "Invalid URL"
         );
@@ -201,13 +198,9 @@ app.get("/proxy", async (req, res) => {
             targetUrl.href,
             {
                 redirect: "follow",
-
                 headers: {
                     "User-Agent":
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
-
-                    "Accept":
-                        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+                        "Mozilla/5.0"
                 }
             }
         );
@@ -218,6 +211,7 @@ app.get("/proxy", async (req, res) => {
         );
 
         if (!response.ok) {
+
             return res
                 .status(response.status)
                 .send(
@@ -231,11 +225,9 @@ app.get("/proxy", async (req, res) => {
             ) || "";
 
 
-        /*
-         * =================================================
-         * HTML
-         * =================================================
-         */
+        // =================================================
+        // HTML
+        // =================================================
 
         if (
             contentType.includes(
@@ -250,16 +242,10 @@ app.get("/proxy", async (req, res) => {
                 cheerio.load(html);
 
 
-            /*
-             * Remove <base>
-             */
-
             $("base").remove();
 
 
-            /*
-             * LINKS
-             */
+            // Links
 
             $("a[href]").each(
                 (_, element) => {
@@ -287,9 +273,7 @@ app.get("/proxy", async (req, res) => {
             );
 
 
-            /*
-             * IMAGES
-             */
+            // Images
 
             $("img[src]").each(
                 (_, element) => {
@@ -317,64 +301,7 @@ app.get("/proxy", async (req, res) => {
             );
 
 
-            /*
-             * IMAGE SRCSET
-             */
-
-            $("img[srcset]").each(
-                (_, element) => {
-
-                    const srcset =
-                        $(element)
-                            .attr("srcset");
-
-                    if (!srcset) {
-                        return;
-                    }
-
-                    const rewritten =
-                        srcset
-                            .split(",")
-                            .map(part => {
-
-                                const pieces =
-                                    part
-                                        .trim()
-                                        .split(/\s+/);
-
-                                const resource =
-                                    pieces.shift();
-
-                                const absolute =
-                                    makeAbsolute(
-                                        resource,
-                                        targetUrl.href
-                                    );
-
-                                if (!absolute) {
-                                    return part;
-                                }
-
-                                return [
-                                    proxyUrl(
-                                        absolute
-                                    ),
-                                    ...pieces
-                                ].join(" ");
-                            })
-                            .join(", ");
-
-                    $(element).attr(
-                        "srcset",
-                        rewritten
-                    );
-                }
-            );
-
-
-            /*
-             * JAVASCRIPT
-             */
+            // Scripts
 
             $("script[src]").each(
                 (_, element) => {
@@ -402,9 +329,7 @@ app.get("/proxy", async (req, res) => {
             );
 
 
-            /*
-             * CSS / LINK RESOURCES
-             */
+            // CSS
 
             $("link[href]").each(
                 (_, element) => {
@@ -432,9 +357,7 @@ app.get("/proxy", async (req, res) => {
             );
 
 
-            /*
-             * FORMS
-             */
+            // Forms
 
             $("form[action]").each(
                 (_, element) => {
@@ -462,92 +385,6 @@ app.get("/proxy", async (req, res) => {
             );
 
 
-            /*
-             * VIDEO / AUDIO / SOURCE
-             */
-
-            $(
-                "video[src]," +
-                "audio[src]," +
-                "source[src]"
-            ).each(
-                (_, element) => {
-
-                    const src =
-                        $(element)
-                            .attr("src");
-
-                    const absolute =
-                        makeAbsolute(
-                            src,
-                            targetUrl.href
-                        );
-
-                    if (absolute) {
-
-                        $(element).attr(
-                            "src",
-                            proxyUrl(
-                                absolute
-                            )
-                        );
-                    }
-                }
-            );
-
-
-            /*
-             * INLINE CSS
-             */
-
-            $("[style]").each(
-                (_, element) => {
-
-                    let style =
-                        $(element)
-                            .attr("style");
-
-                    if (!style) {
-                        return;
-                    }
-
-                    style =
-                        style.replace(
-                            /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,
-                            (
-                                match,
-                                quote,
-                                resource
-                            ) => {
-
-                                const absolute =
-                                    makeAbsolute(
-                                        resource,
-                                        targetUrl.href
-                                    );
-
-                                if (!absolute) {
-                                    return match;
-                                }
-
-                                return `url("${proxyUrl(
-                                    absolute
-                                )}")`;
-                            }
-                        );
-
-                    $(element).attr(
-                        "style",
-                        style
-                    );
-                }
-            );
-
-
-            /*
-             * Send HTML
-             */
-
             res.setHeader(
                 "Content-Type",
                 "text/html; charset=utf-8"
@@ -559,18 +396,9 @@ app.get("/proxy", async (req, res) => {
         }
 
 
-        /*
-         * =================================================
-         * NON-HTML RESOURCES
-         * =================================================
-         *
-         * Images
-         * CSS
-         * JavaScript
-         * Fonts
-         * JSON
-         * etc.
-         */
+        // =================================================
+        // EVERYTHING ELSE
+        // =================================================
 
         const buffer =
             Buffer.from(
@@ -595,22 +423,20 @@ app.get("/proxy", async (req, res) => {
         );
 
         return res.status(500).send(
-            "Failed to retrieve the website"
+            "Failed to retrieve website"
         );
     }
 });
 
 
-/*
- * =========================================================
- * START SERVER
- * =========================================================
- */
+// =====================================================
+// START SERVER
+// =====================================================
 
 app.listen(PORT, () => {
 
     console.log(
-        `Server running on port ${PORT}`
+        `V5 server running on port ${PORT}`
     );
 
 });
