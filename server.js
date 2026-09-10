@@ -1,4 +1,5 @@
 const express = require("express");
+const cheerio = require("cheerio");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -54,12 +55,111 @@ app.get("/proxy", async (req, res) => {
 
         const html = await response.text();
 
+        const $ = cheerio.load(html);
+
+        /*
+         * Rewrite normal links
+         */
+        $("a[href]").each((_, element) => {
+            const href = $(element).attr("href");
+
+            if (!href) {
+                return;
+            }
+
+            if (
+                href.startsWith("#") ||
+                href.startsWith("javascript:") ||
+                href.startsWith("mailto:")
+            ) {
+                return;
+            }
+
+            try {
+                const absoluteUrl =
+                    new URL(href, targetUrl.href);
+
+                if (
+                    absoluteUrl.protocol === "http:" ||
+                    absoluteUrl.protocol === "https:"
+                ) {
+                    $(element).attr(
+                        "href",
+                        "/proxy?url=" +
+                        encodeURIComponent(absoluteUrl.href)
+                    );
+                }
+            } catch {
+                // Ignore invalid URLs
+            }
+        });
+
+        /*
+         * Rewrite images
+         */
+        $("img[src]").each((_, element) => {
+            const src = $(element).attr("src");
+
+            if (!src) {
+                return;
+            }
+
+            try {
+                const absoluteUrl =
+                    new URL(src, targetUrl.href);
+
+                if (
+                    absoluteUrl.protocol === "http:" ||
+                    absoluteUrl.protocol === "https:"
+                ) {
+                    $(element).attr(
+                        "src",
+                        "/proxy?url=" +
+                        encodeURIComponent(absoluteUrl.href)
+                    );
+                }
+            } catch {
+                // Ignore invalid URLs
+            }
+        });
+
+        /*
+         * Rewrite stylesheets
+         */
+        $('link[rel="stylesheet"][href]').each((_, element) => {
+            const href = $(element).attr("href");
+
+            if (!href) {
+                return;
+            }
+
+            try {
+                const absoluteUrl =
+                    new URL(href, targetUrl.href);
+
+                if (
+                    absoluteUrl.protocol === "http:" ||
+                    absoluteUrl.protocol === "https:"
+                ) {
+                    $(element).attr(
+                        "href",
+                        "/proxy?url=" +
+                        encodeURIComponent(absoluteUrl.href)
+                    );
+                }
+            } catch {
+                // Ignore invalid URLs
+            }
+        });
+
+        res.status(200);
+
         res.setHeader(
             "Content-Type",
             "text/html; charset=utf-8"
         );
 
-        res.send(html);
+        res.send($.html());
 
     } catch (error) {
         console.error("Proxy error:", error);
@@ -73,3 +173,4 @@ app.get("/proxy", async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+
