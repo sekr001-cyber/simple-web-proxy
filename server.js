@@ -6,7 +6,46 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static("public"));
 
+function proxyUrl(url) {
+    return "/proxy?url=" + encodeURIComponent(url);
+}
+
+function makeAbsolute(value, baseUrl) {
+    if (!value) {
+        return null;
+    }
+
+    const trimmed = value.trim();
+
+    if (
+        trimmed.startsWith("#") ||
+        trimmed.startsWith("data:") ||
+        trimmed.startsWith("blob:") ||
+        trimmed.startsWith("javascript:") ||
+        trimmed.startsWith("mailto:") ||
+        trimmed.startsWith("tel:")
+    ) {
+        return null;
+    }
+
+    try {
+        const absolute = new URL(trimmed, baseUrl);
+
+        if (
+            absolute.protocol !== "http:" &&
+            absolute.protocol !== "https:"
+        ) {
+            return null;
+        }
+
+        return absolute.href;
+    } catch {
+        return null;
+    }
+}
+
 app.get("/proxy", async (req, res) => {
+
     const target = req.query.url;
 
     if (!target) {
@@ -21,7 +60,10 @@ app.get("/proxy", async (req, res) => {
         return res.status(400).send("Invalid URL");
     }
 
-    if (!["http:", "https:"].includes(targetUrl.protocol)) {
+    if (
+        targetUrl.protocol !== "http:" &&
+        targetUrl.protocol !== "https:"
+    ) {
         return res.status(400).send(
             "Only HTTP and HTTPS are supported"
         );
@@ -30,6 +72,7 @@ app.get("/proxy", async (req, res) => {
     console.log("Proxy request:", targetUrl.href);
 
     try {
+
         const response = await fetch(targetUrl.href, {
             redirect: "follow",
             headers: {
@@ -41,12 +84,17 @@ app.get("/proxy", async (req, res) => {
             }
         });
 
-        console.log("Upstream status:", response.status);
+        console.log(
+            "Upstream status:",
+            response.status
+        );
 
         if (!response.ok) {
             return res
                 .status(response.status)
-                .send(`Target returned HTTP ${response.status}`);
+                .send(
+                    `Target returned HTTP ${response.status}`
+                );
         }
 
         const contentType =
@@ -55,204 +103,279 @@ app.get("/proxy", async (req, res) => {
         /*
          * HTML
          */
+
         if (contentType.includes("text/html")) {
 
             const html = await response.text();
             const $ = cheerio.load(html);
 
             /*
+             * Remove <base>.
+             *
+             * Otherwise the browser may resolve
+             * resources directly against the original
+             * website instead of our proxy.
+             */
+
+            $("base").remove();
+
+            /*
              * Links
              */
+
             $("a[href]").each((_, element) => {
 
-                const href = $(element).attr("href");
+                const href =
+                    $(element).attr("href");
 
-                if (!href) return;
+                const absolute =
+                    makeAbsolute(
+                        href,
+                        targetUrl.href
+                    );
 
-                if (
-                    href.startsWith("#") ||
-                    href.startsWith("javascript:") ||
-                    href.startsWith("mailto:") ||
-                    href.startsWith("tel:")
-                ) {
-                    return;
-                }
-
-                try {
-
-                    const absoluteUrl =
-                        new URL(href, targetUrl.href);
-
-                    if (
-                        absoluteUrl.protocol === "http:" ||
-                        absoluteUrl.protocol === "https:"
-                    ) {
-
-                        $(element).attr(
-                            "href",
-                            "/proxy?url=" +
-                            encodeURIComponent(
-                                absoluteUrl.href
-                            )
-                        );
-                    }
-
-                } catch {
-                    // Ignore invalid URLs
+                if (absolute) {
+                    $(element).attr(
+                        "href",
+                        proxyUrl(absolute)
+                    );
                 }
             });
 
             /*
              * Images
              */
+
             $("img[src]").each((_, element) => {
 
-                const src = $(element).attr("src");
+                const src =
+                    $(element).attr("src");
 
-                if (!src) return;
+                const absolute =
+                    makeAbsolute(
+                        src,
+                        targetUrl.href
+                    );
 
-                try {
-
-                    const absoluteUrl =
-                        new URL(src, targetUrl.href);
-
-                    if (
-                        absoluteUrl.protocol === "http:" ||
-                        absoluteUrl.protocol === "https:"
-                    ) {
-
-                        $(element).attr(
-                            "src",
-                            "/proxy?url=" +
-                            encodeURIComponent(
-                                absoluteUrl.href
-                            )
-                        );
-                    }
-
-                } catch {
-                    // Ignore invalid URLs
+                if (absolute) {
+                    $(element).attr(
+                        "src",
+                        proxyUrl(absolute)
+                    );
                 }
+            });
+
+            /*
+             * Image srcset
+             */
+
+            $("img[srcset]").each((_, element) => {
+
+                const srcset =
+                    $(element).attr("srcset");
+
+                if (!srcset) {
+                    return;
+                }
+
+                const rewritten =
+                    srcset
+                        .split(",")
+                        .map((part) => {
+
+                            const pieces =
+                                part.trim().split(/\s+/);
+
+                            const url =
+                                pieces.shift();
+
+                            const absolute =
+                                makeAbsolute(
+                                    url,
+                                    targetUrl.href
+                                );
+
+                            if (!absolute) {
+                                return part;
+                            }
+
+                            return [
+                                proxyUrl(absolute),
+                                ...pieces
+                            ].join(" ");
+                        })
+                        .join(", ");
+
+                $(element).attr(
+                    "srcset",
+                    rewritten
+                );
             });
 
             /*
              * Scripts
              */
+
             $("script[src]").each((_, element) => {
 
-                const src = $(element).attr("src");
+                const src =
+                    $(element).attr("src");
 
-                if (!src) return;
+                const absolute =
+                    makeAbsolute(
+                        src,
+                        targetUrl.href
+                    );
 
-                try {
-
-                    const absoluteUrl =
-                        new URL(src, targetUrl.href);
-
-                    if (
-                        absoluteUrl.protocol === "http:" ||
-                        absoluteUrl.protocol === "https:"
-                    ) {
-
-                        $(element).attr(
-                            "src",
-                            "/proxy?url=" +
-                            encodeURIComponent(
-                                absoluteUrl.href
-                            )
-                        );
-                    }
-
-                } catch {
-                    // Ignore invalid URLs
+                if (absolute) {
+                    $(element).attr(
+                        "src",
+                        proxyUrl(absolute)
+                    );
                 }
             });
 
             /*
-             * Stylesheets
+             * Stylesheets and other links
              */
+
             $("link[href]").each((_, element) => {
 
-                const href = $(element).attr("href");
+                const href =
+                    $(element).attr("href");
 
-                if (!href) return;
+                const absolute =
+                    makeAbsolute(
+                        href,
+                        targetUrl.href
+                    );
 
-                try {
-
-                    const absoluteUrl =
-                        new URL(href, targetUrl.href);
-
-                    if (
-                        absoluteUrl.protocol === "http:" ||
-                        absoluteUrl.protocol === "https:"
-                    ) {
-
-                        $(element).attr(
-                            "href",
-                            "/proxy?url=" +
-                            encodeURIComponent(
-                                absoluteUrl.href
-                            )
-                        );
-                    }
-
-                } catch {
-                    // Ignore invalid URLs
+                if (absolute) {
+                    $(element).attr(
+                        "href",
+                        proxyUrl(absolute)
+                    );
                 }
             });
 
             /*
              * Forms
              */
+
             $("form[action]").each((_, element) => {
 
-                const action = $(element).attr("action");
+                const action =
+                    $(element).attr("action");
 
-                if (!action) return;
+                const absolute =
+                    makeAbsolute(
+                        action,
+                        targetUrl.href
+                    );
 
-                try {
-
-                    const absoluteUrl =
-                        new URL(action, targetUrl.href);
-
-                    if (
-                        absoluteUrl.protocol === "http:" ||
-                        absoluteUrl.protocol === "https:"
-                    ) {
-
-                        $(element).attr(
-                            "action",
-                            "/proxy?url=" +
-                            encodeURIComponent(
-                                absoluteUrl.href
-                            )
-                        );
-                    }
-
-                } catch {
-                    // Ignore invalid URLs
+                if (absolute) {
+                    $(element).attr(
+                        "action",
+                        proxyUrl(absolute)
+                    );
                 }
             });
+
+            /*
+             * Video/audio sources
+             */
+
+            $("video[src], audio[src], source[src]").each(
+                (_, element) => {
+
+                    const src =
+                        $(element).attr("src");
+
+                    const absolute =
+                        makeAbsolute(
+                            src,
+                            targetUrl.href
+                        );
+
+                    if (absolute) {
+                        $(element).attr(
+                            "src",
+                            proxyUrl(absolute)
+                        );
+                    }
+                }
+            );
+
+            /*
+             * Inline style URLs
+             *
+             * This handles simple cases such as:
+             *
+             * background-image: url("/image.png")
+             */
+
+            $("[style]").each((_, element) => {
+
+                let style =
+                    $(element).attr("style");
+
+                if (!style) {
+                    return;
+                }
+
+                style = style.replace(
+                    /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,
+                    (match, quote, resource) => {
+
+                        const absolute =
+                            makeAbsolute(
+                                resource,
+                                targetUrl.href
+                            );
+
+                        if (!absolute) {
+                            return match;
+                        }
+
+                        return `url("${proxyUrl(absolute)}")`;
+                    }
+                );
+
+                $(element).attr(
+                    "style",
+                    style
+                );
+            });
+
+            /*
+             * Send modified HTML
+             */
 
             res.setHeader(
                 "Content-Type",
                 "text/html; charset=utf-8"
             );
 
-            return res.send($.html());
+            return res.send(
+                $.html()
+            );
         }
 
         /*
-         * Everything that isn't HTML
+         * Non-HTML resources:
          *
-         * Images, CSS, JavaScript, fonts,
-         * JSON and other resources are
-         * passed through unchanged.
+         * Images
+         * CSS
+         * JavaScript
+         * Fonts
+         * JSON
+         * etc.
          */
 
-        const buffer = Buffer.from(
-            await response.arrayBuffer()
-        );
+        const buffer =
+            Buffer.from(
+                await response.arrayBuffer()
+            );
 
         if (contentType) {
             res.setHeader(
@@ -261,21 +384,38 @@ app.get("/proxy", async (req, res) => {
             );
         }
 
-        res.send(buffer);
+        const contentLength =
+            response.headers.get(
+                "content-length"
+            );
+
+        if (contentLength) {
+            res.setHeader(
+                "Content-Length",
+                contentLength
+            );
+        }
+
+        return res.send(buffer);
 
     } catch (error) {
 
-        console.error("Proxy error:", error);
+        console.error(
+            "Proxy error:",
+            error
+        );
 
-        res.status(500).send(
+        return res.status(500).send(
             "Failed to retrieve the website"
         );
     }
 });
 
 app.listen(PORT, () => {
+
     console.log(
         `Server running on port ${PORT}`
     );
+
 });
 
