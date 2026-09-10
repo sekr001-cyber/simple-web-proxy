@@ -1,141 +1,1489 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sv">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proxy V16</title>
 
-    <title>Simple Web Proxy</title>
+<style>
+* {
+    box-sizing: border-box;
+}
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #111827;
+    color: white;
+}
 
-        body {
-            margin: 0;
-            min-height: 100vh;
+body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
 
-            display: flex;
-            align-items: center;
-            justify-content: center;
+/* TOP BAR */
 
-            background: #0f172a;
-            color: white;
+.topbar {
+    background: #1f2937;
+    border-bottom: 1px solid #374151;
+    padding: 10px;
+}
 
-            font-family: Arial, sans-serif;
-        }
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 
-        .container {
-            width: min(650px, 90%);
-            text-align: center;
-        }
+.logo {
+    font-weight: bold;
+    font-size: 18px;
+    min-width: 100px;
+    color: #60a5fa;
+}
 
-        h1 {
-            font-size: 42px;
-            margin-bottom: 10px;
-        }
+button {
+    border: none;
+    background: #374151;
+    color: white;
+    border-radius: 8px;
+    padding: 9px 12px;
+    cursor: pointer;
+    font-size: 14px;
+}
 
-        p {
-            color: #94a3b8;
-            margin-bottom: 30px;
-        }
+button:hover {
+    background: #4b5563;
+}
 
-        form {
-            display: flex;
-            gap: 10px;
-        }
+button:active {
+    transform: scale(0.97);
+}
 
-        input {
-            flex: 1;
+.address-form {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+}
 
-            padding: 15px;
+#address {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid #4b5563;
+    background: #111827;
+    color: white;
+    border-radius: 8px;
+    padding: 10px 13px;
+    font-size: 15px;
+    outline: none;
+}
 
-            border: none;
-            border-radius: 8px;
+#address:focus {
+    border-color: #60a5fa;
+}
 
-            font-size: 16px;
-            outline: none;
-        }
+.go {
+    background: #2563eb;
+}
 
-        button {
-            padding: 15px 25px;
+.go:hover {
+    background: #1d4ed8;
+}
 
-            border: none;
-            border-radius: 8px;
+/* TABS */
 
-            background: #2563eb;
-            color: white;
+.tabs {
+    display: flex;
+    gap: 5px;
+    margin-top: 9px;
+    overflow-x: auto;
+}
 
-            font-size: 16px;
-            font-weight: bold;
+.tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #111827;
+    border: 1px solid #374151;
+    border-radius: 7px;
+    padding: 7px 10px;
+    white-space: nowrap;
+    cursor: pointer;
+}
 
-            cursor: pointer;
-        }
+.tab.active {
+    background: #374151;
+    border-color: #60a5fa;
+}
 
-        button:hover {
-            background: #1d4ed8;
-        }
+.tab-close {
+    color: #9ca3af;
+    cursor: pointer;
+}
 
-        .status {
-            margin-top: 20px;
-            color: #64748b;
-            font-size: 14px;
-        }
-    </style>
+.tab-close:hover {
+    color: white;
+}
+
+.new-tab {
+    background: #2563eb;
+}
+
+/* HOME */
+
+#home {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 30px;
+    overflow: auto;
+}
+
+.home-card {
+    width: min(700px, 100%);
+    text-align: center;
+}
+
+.home-card h1 {
+    font-size: 42px;
+    margin-bottom: 8px;
+}
+
+.home-card p {
+    color: #9ca3af;
+    margin-bottom: 30px;
+}
+
+.big-search {
+    display: flex;
+    gap: 10px;
+}
+
+#homeSearch {
+    flex: 1;
+    border: 1px solid #4b5563;
+    background: #1f2937;
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    font-size: 17px;
+    outline: none;
+}
+
+.search-button {
+    background: #2563eb;
+    padding: 0 22px;
+    font-size: 16px;
+}
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 30px;
+}
+
+.feature {
+    background: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 10px;
+    padding: 18px;
+}
+
+.feature strong {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.feature span {
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+/* BROWSER */
+
+#browser {
+    display: none;
+    flex: 1;
+    position: relative;
+    background: white;
+}
+
+#browserFrame {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: white;
+}
+
+/* STATUS */
+
+.statusbar {
+    height: 28px;
+    background: #111827;
+    border-top: 1px solid #374151;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+/* PANELS */
+
+.panel {
+    display: none;
+    position: fixed;
+    top: 105px;
+    right: 15px;
+    width: 320px;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: #1f2937;
+    border: 1px solid #4b5563;
+    border-radius: 10px;
+    padding: 15px;
+    z-index: 100;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.panel h3 {
+    margin-top: 0;
+}
+
+.panel-item {
+    border-bottom: 1px solid #374151;
+    padding: 9px 0;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+
+.panel-item:hover {
+    color: #60a5fa;
+}
+
+/* MOBILE */
+
+@media (max-width: 700px) {
+
+    .logo {
+        display: none;
+    }
+
+    .toolbar {
+        flex-wrap: wrap;
+    }
+
+    .address-form {
+        order: 2;
+        flex-basis: 100%;
+    }
+
+    .features {
+        grid-template-columns: 1fr;
+    }
+
+    .home-card h1 {
+        font-size: 32px;
+    }
+
+    .big-search {
+        flex-direction: column;
+    }
+
+    .search-button {
+        padding: 13px;
+    }
+
+    .panel {
+        left: 10px;
+        right: 10px;
+        width: auto;
+    }
+}
+</style>
 </head>
 
 <body>
 
-<div class="container">
+<!-- TOP BAR -->
 
-    <h1>Web Proxy</h1>
+<div class="topbar">
 
-    <p>
-        Enter a website URL below
-    </p>
+    <div class="toolbar">
 
-    <form id="proxyForm">
+        <div class="logo">
+            Proxy V16
+        </div>
 
-        <input
-            id="url"
-            type="url"
-            placeholder="https://example.com"
-            required
-        >
-
-        <button type="submit">
-            Go
+        <button onclick="goBack()" title="Tillbaka">
+            ←
         </button>
 
-    </form>
+        <button onclick="goForward()" title="Framåt">
+            →
+        </button>
 
-    <div class="status">
-        Simple Proxy V1
+        <button onclick="reloadPage()" title="Ladda om">
+            ↻
+        </button>
+
+        <button onclick="goHome()" title="Hem">
+            🏠
+        </button>
+
+        <form
+            class="address-form"
+            onsubmit="navigateFromAddress(event)"
+        >
+
+            <input
+                id="address"
+                autocomplete="off"
+                placeholder="Skriv URL eller sök..."
+            >
+
+            <button
+                class="go"
+                type="submit"
+            >
+                Gå
+            </button>
+
+        </form>
+
+        <button
+            onclick="saveBookmark()"
+            title="Spara bokmärke"
+        >
+            ⭐
+        </button>
+
+        <button
+            onclick="toggleBookmarks()"
+            title="Bokmärken"
+        >
+            🔖
+        </button>
+
+        <button
+            onclick="toggleHistory()"
+            title="Historik"
+        >
+            🕘
+        </button>
+
+    </div>
+
+    <div id="tabs" class="tabs"></div>
+
+</div>
+
+
+<!-- HOME -->
+
+<main id="home">
+
+    <div class="home-card">
+
+        <h1>
+            🌐 Proxy V16
+        </h1>
+
+        <p>
+            Skriv en webbadress eller sök efter något.
+        </p>
+
+        <form
+            class="big-search"
+            onsubmit="navigateFromHome(event)"
+        >
+
+            <input
+                id="homeSearch"
+                autocomplete="off"
+                placeholder="t.ex. example.com eller minecraft"
+            >
+
+            <button
+                class="search-button"
+                type="submit"
+            >
+                Sök
+            </button>
+
+        </form>
+
+        <div class="features">
+
+            <div class="feature">
+
+                <strong>
+                    🌐 Webbsidor
+                </strong>
+
+                <span>
+                    Öppna webbsidor genom proxyn.
+                </span>
+
+            </div>
+
+            <div class="feature">
+
+                <strong>
+                    🔎 Sök
+                </strong>
+
+                <span>
+                    Skriv sökord direkt i fältet.
+                </span>
+
+            </div>
+
+            <div class="feature">
+
+                <strong>
+                    ⭐ Bokmärken
+                </strong>
+
+                <span>
+                    Spara dina favoritadresser.
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</main>
+
+
+<!-- BROWSER -->
+
+<main id="browser">
+
+    <iframe
+        id="browserFrame"
+        title="Proxy Browser"
+    ></iframe>
+
+</main>
+
+
+<!-- BOOKMARKS -->
+
+<div
+    id="bookmarksPanel"
+    class="panel"
+>
+
+    <h3>
+        🔖 Bokmärken
+    </h3>
+
+    <div id="bookmarksList">
+        Inga bokmärken ännu.
     </div>
 
 </div>
 
+
+<!-- HISTORY -->
+
+<div
+    id="historyPanel"
+    class="panel"
+>
+
+    <h3>
+        🕘 Historik
+    </h3>
+
+    <div id="historyList">
+        Ingen historik ännu.
+    </div>
+
+</div>
+
+
+<!-- STATUS -->
+
+<div class="statusbar">
+
+    <span id="status">
+        Klar
+    </span>
+
+</div>
+
+
 <script>
-    const form = document.getElementById("proxyForm");
-    const input = document.getElementById("url");
 
-    form.addEventListener("submit", function(event) {
+/* =====================================================
+   STATE
+===================================================== */
 
-        event.preventDefault();
+let tabs = [];
+let activeTab = 0;
 
-        const url = input.value.trim();
 
-        if (!url) {
-            return;
+/* =====================================================
+   CREATE TAB
+===================================================== */
+
+function createTab() {
+
+    const tab = {
+
+        title: "Ny flik",
+
+        url: "",
+
+        history: [],
+
+        historyIndex: -1
+
+    };
+
+    tabs.push(tab);
+
+    activeTab = tabs.length - 1;
+
+    renderTabs();
+
+    showHome();
+
+    updateAddress();
+
+    updateStatus("Ny flik");
+}
+
+
+/* =====================================================
+   RENDER TABS
+===================================================== */
+
+function renderTabs() {
+
+    const container =
+        document.getElementById("tabs");
+
+    container.innerHTML = "";
+
+    tabs.forEach((tab, index) => {
+
+        const element =
+            document.createElement("div");
+
+        element.className =
+            "tab" +
+            (
+                index === activeTab
+                    ? " active"
+                    : ""
+            );
+
+        const title =
+            document.createElement("span");
+
+        title.textContent =
+            tab.title;
+
+        element.appendChild(title);
+
+        const close =
+            document.createElement("span");
+
+        close.className =
+            "tab-close";
+
+        close.textContent =
+            "×";
+
+        close.onclick =
+            function(event) {
+
+                event.stopPropagation();
+
+                closeTab(index);
+            };
+
+        element.appendChild(close);
+
+        element.onclick =
+            function() {
+
+                switchTab(index);
+            };
+
+        container.appendChild(element);
+
+    });
+
+
+    const add =
+        document.createElement("button");
+
+    add.className =
+        "new-tab";
+
+    add.textContent =
+        "+";
+
+    add.onclick =
+        createTab;
+
+    container.appendChild(add);
+}
+
+
+/* =====================================================
+   SWITCH TAB
+===================================================== */
+
+function switchTab(index) {
+
+    if (
+        index < 0 ||
+        index >= tabs.length
+    ) {
+        return;
+    }
+
+    activeTab = index;
+
+    renderTabs();
+
+    const tab =
+        tabs[activeTab];
+
+    if (tab.url) {
+
+        loadProxyUrl(
+            tab.url,
+            false
+        );
+
+    } else {
+
+        showHome();
+    }
+
+    updateAddress();
+}
+
+
+/* =====================================================
+   CLOSE TAB
+===================================================== */
+
+function closeTab(index) {
+
+    if (tabs.length === 1) {
+
+        tabs[0] = {
+
+            title: "Ny flik",
+
+            url: "",
+
+            history: [],
+
+            historyIndex: -1
+        };
+
+        activeTab = 0;
+
+        renderTabs();
+
+        showHome();
+
+        updateAddress();
+
+        return;
+    }
+
+    tabs.splice(index, 1);
+
+    if (activeTab >= tabs.length) {
+
+        activeTab =
+            tabs.length - 1;
+    }
+
+    renderTabs();
+
+    switchTab(activeTab);
+}
+
+
+/* =====================================================
+   NORMALIZE INPUT
+===================================================== */
+
+function normalizeInput(value) {
+
+    value =
+        value.trim();
+
+    if (!value) {
+
+        return null;
+    }
+
+    if (
+        value.startsWith("http://") ||
+        value.startsWith("https://")
+    ) {
+
+        return value;
+    }
+
+    if (
+        value.includes(".") &&
+        !value.includes(" ")
+    ) {
+
+        return "https://" + value;
+    }
+
+    return null;
+}
+
+
+/* =====================================================
+   NAVIGATE INPUT
+===================================================== */
+
+function navigateInput(value) {
+
+    value =
+        value.trim();
+
+    if (!value) {
+
+        return;
+    }
+
+    const url =
+        normalizeInput(value);
+
+    if (url) {
+
+        loadProxyUrl(
+            url,
+            true
+        );
+
+        return;
+    }
+
+    search(value);
+}
+
+
+/* =====================================================
+   SEARCH
+===================================================== */
+
+function search(query) {
+
+    updateStatus(
+        "Söker efter: " + query
+    );
+
+    const searchUrl =
+        "/search?q=" +
+        encodeURIComponent(query);
+
+    const tab =
+        tabs[activeTab];
+
+    tab.url =
+        searchUrl;
+
+    tab.title =
+        "Sök: " + query;
+
+    const frame =
+        document.getElementById(
+            "browserFrame"
+        );
+
+    document.getElementById(
+        "home"
+    ).style.display =
+        "none";
+
+    document.getElementById(
+        "browser"
+    ).style.display =
+        "block";
+
+    frame.src =
+        searchUrl;
+
+    renderTabs();
+
+    updateAddress();
+}
+
+
+/* =====================================================
+   LOAD PROXY URL
+===================================================== */
+
+function loadProxyUrl(
+    url,
+    addHistory = true
+) {
+
+    updateStatus(
+        "Laddar " + url
+    );
+
+    const tab =
+        tabs[activeTab];
+
+    if (addHistory) {
+
+        if (
+            tab.historyIndex <
+            tab.history.length - 1
+        ) {
+
+            tab.history =
+                tab.history.slice(
+                    0,
+                    tab.historyIndex + 1
+                );
         }
 
-        const proxyUrl =
-            "/proxy?url=" +
-            encodeURIComponent(url);
+        tab.history.push(url);
 
-        window.location.href = proxyUrl;
+        tab.historyIndex =
+            tab.history.length - 1;
+    }
+
+    tab.url =
+        url;
+
+    try {
+
+        const parsed =
+            new URL(url);
+
+        tab.title =
+            parsed.hostname;
+
+    } catch {
+
+        tab.title =
+            "Webbsida";
+    }
+
+    const proxy =
+        "/proxy?url=" +
+        encodeURIComponent(url);
+
+    const frame =
+        document.getElementById(
+            "browserFrame"
+        );
+
+    document.getElementById(
+        "home"
+    ).style.display =
+        "none";
+
+    document.getElementById(
+        "browser"
+    ).style.display =
+        "block";
+
+    frame.src =
+        proxy;
+
+    renderTabs();
+
+    updateAddress();
+
+    saveLocalHistory(url);
+}
+
+
+/* =====================================================
+   ADDRESS BAR
+===================================================== */
+
+function navigateFromAddress(event) {
+
+    event.preventDefault();
+
+    const value =
+        document.getElementById(
+            "address"
+        ).value;
+
+    navigateInput(value);
+}
+
+
+function navigateFromHome(event) {
+
+    event.preventDefault();
+
+    const value =
+        document.getElementById(
+            "homeSearch"
+        ).value;
+
+    navigateInput(value);
+}
+
+
+function updateAddress() {
+
+    const input =
+        document.getElementById(
+            "address"
+        );
+
+    const tab =
+        tabs[activeTab];
+
+    if (
+        !tab ||
+        !tab.url
+    ) {
+
+        input.value =
+            "";
+
+        return;
+    }
+
+    input.value =
+        tab.url;
+}
+
+
+/* =====================================================
+   BACK
+===================================================== */
+
+function goBack() {
+
+    const tab =
+        tabs[activeTab];
+
+    if (
+        tab.historyIndex <= 0
+    ) {
+
+        updateStatus(
+            "Ingen tidigare sida"
+        );
+
+        return;
+    }
+
+    tab.historyIndex--;
+
+    const url =
+        tab.history[
+            tab.historyIndex
+        ];
+
+    loadProxyUrl(
+        url,
+        false
+    );
+}
+
+
+/* =====================================================
+   FORWARD
+===================================================== */
+
+function goForward() {
+
+    const tab =
+        tabs[activeTab];
+
+    if (
+        tab.historyIndex >=
+        tab.history.length - 1
+    ) {
+
+        updateStatus(
+            "Ingen nästa sida"
+        );
+
+        return;
+    }
+
+    tab.historyIndex++;
+
+    const url =
+        tab.history[
+            tab.historyIndex
+        ];
+
+    loadProxyUrl(
+        url,
+        false
+    );
+}
+
+
+/* =====================================================
+   RELOAD
+===================================================== */
+
+function reloadPage() {
+
+    const frame =
+        document.getElementById(
+            "browserFrame"
+        );
+
+    if (
+        frame.src &&
+        frame.src !== "about:blank"
+    ) {
+
+        frame.contentWindow.location.reload();
+
+        updateStatus(
+            "Laddar om..."
+        );
+
+    } else {
+
+        updateStatus(
+            "Ingen sida att ladda om"
+        );
+    }
+}
+
+
+/* =====================================================
+   HOME
+===================================================== */
+
+function goHome() {
+
+    showHome();
+
+    updateStatus(
+        "Startsida"
+    );
+}
+
+
+function showHome() {
+
+    document.getElementById(
+        "home"
+    ).style.display =
+        "flex";
+
+    document.getElementById(
+        "browser"
+    ).style.display =
+        "none";
+}
+
+
+/* =====================================================
+   STATUS
+===================================================== */
+
+function updateStatus(message) {
+
+    document.getElementById(
+        "status"
+    ).textContent =
+        message;
+}
+
+
+/* =====================================================
+   LOCAL HISTORY
+===================================================== */
+
+function saveLocalHistory(url) {
+
+    let history =
+        JSON.parse(
+            localStorage.getItem(
+                "proxy_history"
+            ) || "[]"
+        );
+
+    history =
+        history.filter(
+            item => item !== url
+        );
+
+    history.unshift(url);
+
+    history =
+        history.slice(0, 50);
+
+    localStorage.setItem(
+        "proxy_history",
+        JSON.stringify(history)
+    );
+}
+
+
+function loadLocalHistory() {
+
+    return JSON.parse(
+        localStorage.getItem(
+            "proxy_history"
+        ) || "[]"
+    );
+}
+
+
+/* =====================================================
+   BOOKMARKS
+===================================================== */
+
+function getBookmarks() {
+
+    return JSON.parse(
+        localStorage.getItem(
+            "proxy_bookmarks"
+        ) || "[]"
+    );
+}
+
+
+function saveBookmark() {
+
+    const tab =
+        tabs[activeTab];
+
+    if (
+        !tab ||
+        !tab.url
+    ) {
+
+        updateStatus(
+            "Ingen sida att bokmärka"
+        );
+
+        return;
+    }
+
+    let bookmarks =
+        getBookmarks();
+
+    if (
+        !bookmarks.includes(
+            tab.url
+        )
+    ) {
+
+        bookmarks.unshift(
+            tab.url
+        );
+
+        bookmarks =
+            bookmarks.slice(0, 50);
+
+        localStorage.setItem(
+            "proxy_bookmarks",
+            JSON.stringify(bookmarks)
+        );
+
+        updateStatus(
+            "Bokmärke sparat ⭐"
+        );
+
+    } else {
+
+        updateStatus(
+            "Redan bokmärkt"
+        );
+    }
+}
+
+
+function toggleBookmarks() {
+
+    const panel =
+        document.getElementById(
+            "bookmarksPanel"
+        );
+
+    const history =
+        document.getElementById(
+            "historyPanel"
+        );
+
+    history.style.display =
+        "none";
+
+    if (
+        panel.style.display ===
+        "block"
+    ) {
+
+        panel.style.display =
+            "none";
+
+        return;
+    }
+
+    renderBookmarks();
+
+    panel.style.display =
+        "block";
+}
+
+
+function renderBookmarks() {
+
+    const container =
+        document.getElementById(
+            "bookmarksList"
+        );
+
+    const bookmarks =
+        getBookmarks();
+
+    container.innerHTML =
+        "";
+
+    if (
+        !bookmarks.length
+    ) {
+
+        container.textContent =
+            "Inga bokmärken ännu.";
+
+        return;
+    }
+
+    bookmarks.forEach(url => {
+
+        const item =
+            document.createElement(
+                "div"
+            );
+
+        item.className =
+            "panel-item";
+
+        item.textContent =
+            url;
+
+        item.onclick =
+            function() {
+
+                loadProxyUrl(
+                    url,
+                    true
+                );
+
+                document.getElementById(
+                    "bookmarksPanel"
+                ).style.display =
+                    "none";
+            };
+
+        container.appendChild(
+            item
+        );
     });
+}
+
+
+/* =====================================================
+   HISTORY PANEL
+===================================================== */
+
+function toggleHistory() {
+
+    const panel =
+        document.getElementById(
+            "historyPanel"
+        );
+
+    const bookmarks =
+        document.getElementById(
+            "bookmarksPanel"
+        );
+
+    bookmarks.style.display =
+        "none";
+
+    if (
+        panel.style.display ===
+        "block"
+    ) {
+
+        panel.style.display =
+            "none";
+
+        return;
+    }
+
+    renderHistory();
+
+    panel.style.display =
+        "block";
+}
+
+
+function renderHistory() {
+
+    const container =
+        document.getElementById(
+            "historyList"
+        );
+
+    const history =
+        loadLocalHistory();
+
+    container.innerHTML =
+        "";
+
+    if (
+        !history.length
+    ) {
+
+        container.textContent =
+            "Ingen historik ännu.";
+
+        return;
+    }
+
+    history.forEach(url => {
+
+        const item =
+            document.createElement(
+                "div"
+            );
+
+        item.className =
+            "panel-item";
+
+        item.textContent =
+            url;
+
+        item.onclick =
+            function() {
+
+                loadProxyUrl(
+                    url,
+                    true
+                );
+
+                document.getElementById(
+                    "historyPanel"
+                ).style.display =
+                    "none";
+            };
+
+        container.appendChild(
+            item
+        );
+    });
+}
+
+
+/* =====================================================
+   KEYBOARD SHORTCUTS
+===================================================== */
+
+document.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.ctrlKey &&
+            event.key.toLowerCase() === "l"
+        ) {
+
+            event.preventDefault();
+
+            const input =
+                document.getElementById(
+                    "address"
+                );
+
+            input.focus();
+            input.select();
+        }
+
+
+        if (
+            event.ctrlKey &&
+            event.key.toLowerCase() === "t"
+        ) {
+
+            event.preventDefault();
+
+            createTab();
+        }
+
+
+        if (
+            event.ctrlKey &&
+            event.key.toLowerCase() === "w"
+        ) {
+
+            event.preventDefault();
+
+            closeTab(activeTab);
+        }
+
+    }
+);
+
+
+/* =====================================================
+   FRAME LOAD
+===================================================== */
+
+document
+    .getElementById(
+        "browserFrame"
+    )
+    .addEventListener(
+        "load",
+        () => {
+
+            updateStatus(
+                "Sidan laddad"
+            );
+
+        }
+    );
+
+
+/* =====================================================
+   START
+===================================================== */
+
+createTab();
+
 </script>
 
 </body>
 </html>
+
