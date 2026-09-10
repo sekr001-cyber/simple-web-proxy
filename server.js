@@ -1,10 +1,210 @@
 const express = require("express");
 const cheerio = require("cheerio");
+const crypto = require("crypto");
+const dns = require("dns").promises;
+const net = require("net");
 
 const app = express();
+
 const PORT = process.env.PORT || 3000;
 
+app.disable("x-powered-by");
+
 app.use(express.static("public"));
+
+
+// =====================================================
+// CONFIG
+// =====================================================
+
+const REQUEST_TIMEOUT = 15000;
+const MAX_URL_LENGTH = 4096;
+const SESSION_COOKIE = "proxy_sid";
+
+
+// =====================================================
+// SESSION STORAGE
+// =====================================================
+
+const sessions = new Map();
+
+function createSession() {
+
+    const id =
+        crypto.randomBytes(24).toString("hex");
+
+    sessions.set(id, {
+        createdAt: Date.now(),
+        lastUsed: Date.now(),
+        cookies: {}
+    });
+
+    return id;
+}
+
+
+function getOrCreateSession(req, res) {
+
+    let sessionId =
+        req.cookies?.[SESSION_COOKIE];
+
+    if (
+        !sessionId ||
+        !sessions.has(sessionId)
+    ) {
+        sessionId = createSession();
+
+        res.cookie(
+            SESSION_COOKIE,
+            sessionId,
+            {
+                httpOnly: true,
+                sameSite: "lax",
+                secure: process.env.NODE_ENV === "production",
+                maxAge: 1000 * 60 * 60 * 24
+            }
+        );
+    }
+
+    const session =
+        sessions.get(sessionId);
+
+    session.lastUsed = Date.now();
+
+    return {
+        id: sessionId,
+        data: session
+    };
+}
+
+
+// =====================================================
+// SESSION CLEANUP
+// =====================================================
+
+setInterval(() => {
+
+    const now = Date.now();
+
+    const MAX_AGE =
+        1000 * 60 * 60 * 24;
+
+    for (const [id, session] of sessions) {
+
+        if (
+            now - session.lastUsed >
+            MAX_AGE
+        ) {
+            sessions.delete(id);
+        }
+    }
+
+}, 1000 * 60 * 30);
+
+
+// =====================================================
+// COOKIE PARSER
+// =====================================================
+
+function parseCookieHeader(header) {
+
+    const result = {};
+
+    if (!header) {
+        return result;
+    }
+
+    for (
+        const part of header.split(";")
+    ) {
+
+        const index =
+            part.indexOf("=");
+
+        if (index === -1) continue;
+
+        const name =
+            part
+                .substring(0, index)
+                .trim();
+
+        const value =
+            part
+                .substring(index + 1)
+                .trim();
+
+        if (name) {
+            result[name] = value;
+        }
+    }
+
+    return result;
+}
+
+
+function getTargetCookies(
+    session,
+    hostname
+) {
+
+    const cookies =
+        session.cookies[hostname];
+
+    if (!cookies) {
+        return "";
+    }
+
+    return Object.entries(cookies)
+        .map(
+            ([name, value]) =>
+                `${name}=${value}`
+        )
+        .join("; ");
+}
+
+
+function storeTargetCookies(
+    session,
+    hostname,
+    headers
+) {
+
+    if (!headers || headers.length === 0) {
+        return;
+    }
+
+    if (!session.cookies[hostname]) {
+        session.cookies[hostname] = {};
+    }
+
+    for (const header of headers) {
+
+        const first =
+            header.split(";")[0];
+
+        const index =
+            first.indexOf("=");
+
+        if (index === -1) {
+            continue;
+        }
+
+        const name =
+            first
+                .substring(0, index)
+                .trim();
+
+        const value =
+            first
+                .substring(index + 1)
+                .trim();
+
+        if (!name) continue;
+
+        session.cookies[hostname][name] =
+            value;
+    }
+}
 
 
 // =====================================================
@@ -12,13 +212,25 @@ app.use(express.static("public"));
 // =====================================================
 
 function proxyUrl(url) {
-    return "/proxy?url=" + encodeURIComponent(url);
+
+    return (
+        "/proxy?url=" +
+        encodeURIComponent(url)
+    );
 }
 
-function makeAbsolute(value, baseUrl) {
-    if (!value) return null;
 
-    const trimmed = value.trim();
+function makeAbsolute(
+    value,
+    baseUrl
+) {
+
+    if (!value) {
+        return null;
+    }
+
+    const trimmed =
+        value.trim();
 
     if (
         trimmed.startsWith("#") ||
@@ -32,76 +244,184 @@ function makeAbsolute(value, baseUrl) {
     }
 
     try {
-        const absolute = new URL(trimmed, baseUrl);
+
+        const url =
+            new URL(
+                trimmed,
+                baseUrl
+            );
 
         if (
-            absolute.protocol !== "http:" &&
-            absolute.protocol !== "https:"
+            url.protocol !== "http:" &&
+            url.protocol !== "https:"
         ) {
             return null;
         }
 
-        return absolute.href;
+        return url.href;
+
     } catch {
+
         return null;
     }
 }
 
 
 // =====================================================
-// COOKIE STORAGE
+// PRIVATE NETWORK PROTECTION
 // =====================================================
 
-const cookieJar = new Map();
+function isPrivateIPv4(ip) {
 
-function getSessionId(req) {
-    return req.headers["x-proxy-session"] || null;
-}
+    const parts =
+        ip.split(".").map(Number);
 
-function getCookies(sessionId, hostname) {
-    if (!sessionId) return "";
-
-    const session = cookieJar.get(sessionId);
-
-    if (!session) return "";
-
-    const cookies = session[hostname];
-
-    if (!cookies) return "";
-
-    return Object.entries(cookies)
-        .map(([name, value]) => `${name}=${value}`)
-        .join("; ");
-}
-
-function storeCookies(sessionId, hostname, setCookieHeaders) {
-    if (!sessionId || !setCookieHeaders) return;
-
-    if (!cookieJar.has(sessionId)) {
-        cookieJar.set(sessionId, {});
+    if (parts.length !== 4) {
+        return false;
     }
 
-    const session = cookieJar.get(sessionId);
+    const [a, b] = parts;
 
-    if (!session[hostname]) {
-        session[hostname] = {};
+    return (
+        a === 10 ||
+        a === 127 ||
+        a === 0 ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) ||
+        (a === 169 && b === 254)
+    );
+}
+
+
+function isPrivateIPv6(ip) {
+
+    const normalized =
+        ip.toLowerCase();
+
+    return (
+        normalized === "::1" ||
+        normalized.startsWith("fc") ||
+        normalized.startsWith("fd") ||
+        normalized.startsWith("fe80:")
+    );
+}
+
+
+async function isSafeTarget(url) {
+
+    const hostname =
+        url.hostname;
+
+    if (
+        hostname === "localhost" ||
+        hostname.endsWith(".localhost")
+    ) {
+        return false;
     }
 
-    for (const header of setCookieHeaders) {
-        const firstPart = header.split(";")[0];
-        const separator = firstPart.indexOf("=");
+    if (net.isIP(hostname)) {
 
-        if (separator === -1) continue;
-
-        const name =
-            firstPart.substring(0, separator).trim();
-
-        const value =
-            firstPart.substring(separator + 1).trim();
-
-        if (name) {
-            session[hostname][name] = value;
+        if (net.isIPv4(hostname)) {
+            return !isPrivateIPv4(hostname);
         }
+
+        if (net.isIPv6(hostname)) {
+            return !isPrivateIPv6(hostname);
+        }
+    }
+
+    try {
+
+        const addresses =
+            await dns.lookup(
+                hostname,
+                {
+                    all: true
+                }
+            );
+
+        for (const address of addresses) {
+
+            if (
+                net.isIPv4(address.address) &&
+                isPrivateIPv4(address.address)
+            ) {
+                return false;
+            }
+
+            if (
+                net.isIPv6(address.address) &&
+                isPrivateIPv6(address.address)
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+
+    } catch {
+
+        return false;
+    }
+}
+
+
+// =====================================================
+// FETCH HELPER
+// =====================================================
+
+async function fetchTarget(
+    targetUrl,
+    session
+) {
+
+    const controller =
+        new AbortController();
+
+    const timeout =
+        setTimeout(
+            () =>
+                controller.abort(),
+            REQUEST_TIMEOUT
+        );
+
+    const headers = {
+
+        "User-Agent":
+            "Mozilla/5.0",
+
+        "Accept":
+            "*/*"
+    };
+
+    const cookies =
+        getTargetCookies(
+            session,
+            targetUrl.hostname
+        );
+
+    if (cookies) {
+        headers.Cookie = cookies;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                targetUrl.href,
+                {
+                    redirect: "follow",
+                    headers,
+                    signal:
+                        controller.signal
+                }
+            );
+
+        return response;
+
+    } finally {
+
+        clearTimeout(timeout);
     }
 }
 
@@ -110,11 +430,18 @@ function storeCookies(sessionId, hostname, setCookieHeaders) {
 // CSS REWRITER
 // =====================================================
 
-function rewriteCss(css, baseUrl) {
+function rewriteCss(
+    css,
+    baseUrl
+) {
 
     return css.replace(
         /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,
-        (match, quote, resource) => {
+        (
+            match,
+            quote,
+            resource
+        ) => {
 
             const absolute =
                 makeAbsolute(
@@ -126,600 +453,791 @@ function rewriteCss(css, baseUrl) {
                 return match;
             }
 
-            return `url("${proxyUrl(
-                absolute
-            )}")`;
+            return (
+                `url("${proxyUrl(
+                    absolute
+                )}")`
+            );
         }
     );
 }
 
 
 // =====================================================
-// REQUEST LOGGER
+// HTML REWRITER
 // =====================================================
 
-function logRequest(type, url, status) {
+function rewriteHtml(
+    html,
+    baseUrl
+) {
 
-    console.log(
-        `[${type}] ${status} ${url}`
+    const $ =
+        cheerio.load(html);
+
+    $("base").remove();
+
+
+    // -----------------------------------------------
+    // Links
+    // -----------------------------------------------
+
+    $("a[href]").each(
+        (_, element) => {
+
+            const value =
+                $(element)
+                    .attr("href");
+
+            const absolute =
+                makeAbsolute(
+                    value,
+                    baseUrl
+                );
+
+            if (absolute) {
+
+                $(element).attr(
+                    "href",
+                    proxyUrl(absolute)
+                );
+            }
+        }
     );
+
+
+    // -----------------------------------------------
+    // Images
+    // -----------------------------------------------
+
+    $(
+        "img[src], " +
+        "video[src], " +
+        "audio[src], " +
+        "source[src]"
+    ).each(
+        (_, element) => {
+
+            const value =
+                $(element)
+                    .attr("src");
+
+            const absolute =
+                makeAbsolute(
+                    value,
+                    baseUrl
+                );
+
+            if (absolute) {
+
+                $(element).attr(
+                    "src",
+                    proxyUrl(absolute)
+                );
+            }
+        }
+    );
+
+
+    // -----------------------------------------------
+    // srcset
+    // -----------------------------------------------
+
+    $("[srcset]").each(
+        (_, element) => {
+
+            const srcset =
+                $(element)
+                    .attr("srcset");
+
+            if (!srcset) return;
+
+            const rewritten =
+                srcset
+                    .split(",")
+                    .map(part => {
+
+                        const pieces =
+                            part
+                                .trim()
+                                .split(/\s+/);
+
+                        const resource =
+                            pieces.shift();
+
+                        const absolute =
+                            makeAbsolute(
+                                resource,
+                                baseUrl
+                            );
+
+                        if (!absolute) {
+                            return part;
+                        }
+
+                        return [
+                            proxyUrl(
+                                absolute
+                            ),
+                            ...pieces
+                        ].join(" ");
+                    })
+                    .join(", ");
+
+            $(element).attr(
+                "srcset",
+                rewritten
+            );
+        }
+    );
+
+
+    // -----------------------------------------------
+    // Scripts
+    // -----------------------------------------------
+
+    $("script[src]").each(
+        (_, element) => {
+
+            const value =
+                $(element)
+                    .attr("src");
+
+            const absolute =
+                makeAbsolute(
+                    value,
+                    baseUrl
+                );
+
+            if (absolute) {
+
+                $(element).attr(
+                    "src",
+                    proxyUrl(absolute)
+                );
+            }
+        }
+    );
+
+
+    // -----------------------------------------------
+    // CSS
+    // -----------------------------------------------
+
+    $("link[href]").each(
+        (_, element) => {
+
+            const value =
+                $(element)
+                    .attr("href");
+
+            const absolute =
+                makeAbsolute(
+                    value,
+                    baseUrl
+                );
+
+            if (absolute) {
+
+                $(element).attr(
+                    "href",
+                    proxyUrl(absolute)
+                );
+            }
+        }
+    );
+
+
+    // -----------------------------------------------
+    // Forms
+    // -----------------------------------------------
+
+    $("form[action]").each(
+        (_, element) => {
+
+            const value =
+                $(element)
+                    .attr("action");
+
+            const absolute =
+                makeAbsolute(
+                    value,
+                    baseUrl
+                );
+
+            if (absolute) {
+
+                $(element).attr(
+                    "action",
+                    proxyUrl(absolute)
+                );
+            }
+        }
+    );
+
+
+    // -----------------------------------------------
+    // Inline CSS
+    // -----------------------------------------------
+
+    $("[style]").each(
+        (_, element) => {
+
+            const style =
+                $(element)
+                    .attr("style");
+
+            if (!style) return;
+
+            $(element).attr(
+                "style",
+                rewriteCss(
+                    style,
+                    baseUrl
+                )
+            );
+        }
+    );
+
+
+    return $.html();
 }
 
 
 // =====================================================
-// HEALTH CHECK
+// HEALTH
 // =====================================================
 
-app.get("/health", (req, res) => {
+app.get(
+    "/health",
+    (req, res) => {
 
-    res.json({
-        status: "ok",
-        version: "V9",
-        uptime: Math.round(process.uptime())
-    });
-});
+        res.json({
+
+            status: "ok",
+
+            version: "V15",
+
+            uptime:
+                Math.round(
+                    process.uptime()
+                ),
+
+            sessions:
+                sessions.size,
+
+            timestamp:
+                new Date().toISOString()
+        });
+    }
+);
 
 
 // =====================================================
 // TEST
 // =====================================================
 
-app.get("/test", (req, res) => {
-    res.send("V9 SERVER IS RUNNING");
-});
+app.get(
+    "/test",
+    (req, res) => {
+
+        res.send(
+            "V15 SERVER IS RUNNING"
+        );
+    }
+);
+
+
+// =====================================================
+// DEBUG
+// =====================================================
+
+app.get(
+    "/debug",
+    (req, res) => {
+
+        res.json({
+
+            version: "V15",
+
+            node:
+                process.version,
+
+            uptime:
+                Math.round(
+                    process.uptime()
+                ),
+
+            sessions:
+                sessions.size,
+
+            memory:
+                process.memoryUsage()
+        });
+    }
+);
 
 
 // =====================================================
 // API
 // =====================================================
 
-app.get("/api", async (req, res) => {
+app.get(
+    "/api",
+    async (req, res) => {
 
-    const target = req.query.url;
+        const target =
+            req.query.url;
 
-    if (!target) {
-        return res.status(400).json({
-            error: "Missing URL"
-        });
-    }
+        if (!target) {
 
-    let targetUrl;
-
-    try {
-        targetUrl = new URL(target);
-    } catch {
-        return res.status(400).json({
-            error: "Invalid URL"
-        });
-    }
-
-    if (
-        targetUrl.protocol !== "http:" &&
-        targetUrl.protocol !== "https:"
-    ) {
-        return res.status(400).json({
-            error:
-                "Only HTTP and HTTPS are supported"
-        });
-    }
-
-    try {
-
-        const sessionId =
-            getSessionId(req);
-
-        const headers = {
-            "User-Agent":
-                "Mozilla/5.0",
-
-            "Accept":
-                "application/json,text/plain,*/*"
-        };
-
-        const cookies =
-            getCookies(
-                sessionId,
-                targetUrl.hostname
-            );
-
-        if (cookies) {
-            headers["Cookie"] = cookies;
+            return res
+                .status(400)
+                .json({
+                    error:
+                        "Missing URL"
+                });
         }
 
-        const response =
-            await fetch(
-                targetUrl.href,
-                {
-                    redirect: "follow",
-                    headers
-                }
-            );
+        if (
+            target.length >
+            MAX_URL_LENGTH
+        ) {
 
-        logRequest(
-            "API",
-            response.url,
-            response.status
-        );
-
-        const setCookies =
-            typeof response.headers.getSetCookie ===
-            "function"
-                ? response.headers.getSetCookie()
-                : [];
-
-        storeCookies(
-            sessionId,
-            new URL(response.url).hostname,
-            setCookies
-        );
-
-        const body =
-            await response.text();
-
-        const contentType =
-            response.headers.get(
-                "content-type"
-            );
-
-        if (contentType) {
-            res.setHeader(
-                "Content-Type",
-                contentType
-            );
+            return res
+                .status(414)
+                .json({
+                    error:
+                        "URL too long"
+                });
         }
 
-        return res
-            .status(response.status)
-            .send(body);
+        let targetUrl;
 
-    } catch (error) {
+        try {
 
-        console.error(
-            "API error:",
-            error
-        );
+            targetUrl =
+                new URL(target);
 
-        return res.status(500).json({
-            error:
-                "API request failed"
-        });
-    }
-});
+        } catch {
 
-
-// =====================================================
-// MAIN PROXY
-// =====================================================
-
-app.get("/proxy", async (req, res) => {
-
-    const target = req.query.url;
-
-    if (!target) {
-        return res.status(400).send(
-            "Missing URL"
-        );
-    }
-
-    let targetUrl;
-
-    try {
-        targetUrl = new URL(target);
-    } catch {
-        return res.status(400).send(
-            "Invalid URL"
-        );
-    }
-
-    if (
-        targetUrl.protocol !== "http:" &&
-        targetUrl.protocol !== "https:"
-    ) {
-        return res.status(400).send(
-            "Only HTTP and HTTPS are supported"
-        );
-    }
-
-    try {
-
-        const sessionId =
-            getSessionId(req);
-
-        const headers = {
-            "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
-
-            "Accept":
-                "*/*"
-        };
-
-        const cookies =
-            getCookies(
-                sessionId,
-                targetUrl.hostname
-            );
-
-        if (cookies) {
-            headers["Cookie"] = cookies;
+            return res
+                .status(400)
+                .json({
+                    error:
+                        "Invalid URL"
+                });
         }
 
-        console.log(
-            "Proxy request:",
-            targetUrl.href
-        );
+        if (
+            targetUrl.protocol !==
+                "http:" &&
+            targetUrl.protocol !==
+                "https:"
+        ) {
 
-        const response =
-            await fetch(
-                targetUrl.href,
-                {
-                    redirect: "follow",
-                    headers
-                }
+            return res
+                .status(400)
+                .json({
+                    error:
+                        "Only HTTP and HTTPS are supported"
+                });
+        }
+
+        if (
+            !(await isSafeTarget(
+                targetUrl
+            ))
+        ) {
+
+            return res
+                .status(403)
+                .json({
+                    error:
+                        "Target address is not allowed"
+                });
+        }
+
+        const {
+            data: session
+        } =
+            getOrCreateSession(
+                req,
+                res
             );
 
-        const finalUrl =
-            new URL(response.url);
+        try {
 
-        logRequest(
-            "PROXY",
-            finalUrl.href,
-            response.status
-        );
+            const response =
+                await fetchTarget(
+                    targetUrl,
+                    session
+                );
 
-        const setCookies =
-            typeof response.headers.getSetCookie ===
-            "function"
-                ? response.headers.getSetCookie()
-                : [];
+            const finalUrl =
+                new URL(
+                    response.url
+                );
 
-        storeCookies(
-            sessionId,
-            finalUrl.hostname,
-            setCookies
-        );
+            const setCookies =
+                typeof response.headers
+                    .getSetCookie ===
+                "function"
+                    ? response.headers
+                        .getSetCookie()
+                    : [];
 
-        if (!response.ok) {
+            storeTargetCookies(
+                session,
+                finalUrl.hostname,
+                setCookies
+            );
+
+            console.log(
+                `[API] ${response.status} ${finalUrl.href}`
+            );
+
+            const body =
+                await response.text();
+
+            const contentType =
+                response.headers.get(
+                    "content-type"
+                );
+
+            if (contentType) {
+
+                res.setHeader(
+                    "Content-Type",
+                    contentType
+                );
+            }
 
             return res
                 .status(response.status)
+                .send(body);
+
+        } catch (error) {
+
+            console.error(
+                "[API ERROR]",
+                error
+            );
+
+            if (
+                error.name ===
+                "AbortError"
+            ) {
+
+                return res
+                    .status(504)
+                    .json({
+                        error:
+                            "Target request timed out"
+                    });
+            }
+
+            return res
+                .status(502)
+                .json({
+                    error:
+                        "Could not reach target"
+                });
+        }
+    }
+);
+
+
+// =====================================================
+// PROXY
+// =====================================================
+
+app.get(
+    "/proxy",
+    async (req, res) => {
+
+        const target =
+            req.query.url;
+
+        if (!target) {
+
+            return res
+                .status(400)
                 .send(
-                    `Target returned HTTP ${response.status}`
+                    "Missing URL"
                 );
         }
 
-        const contentType =
-            response.headers.get(
-                "content-type"
-            ) || "";
-
-
-        // =================================================
-        // HTML
-        // =================================================
-
         if (
-            contentType.includes(
-                "text/html"
-            )
+            target.length >
+            MAX_URL_LENGTH
         ) {
 
-            const html =
-                await response.text();
-
-            const $ =
-                cheerio.load(html);
-
-            $("base").remove();
-
-
-            // Links
-
-            $("a[href]").each(
-                (_, element) => {
-
-                    const href =
-                        $(element)
-                            .attr("href");
-
-                    const absolute =
-                        makeAbsolute(
-                            href,
-                            finalUrl.href
-                        );
-
-                    if (absolute) {
-                        $(element).attr(
-                            "href",
-                            proxyUrl(absolute)
-                        );
-                    }
-                }
-            );
-
-
-            // Images
-
-            $("img[src]").each(
-                (_, element) => {
-
-                    const src =
-                        $(element)
-                            .attr("src");
-
-                    const absolute =
-                        makeAbsolute(
-                            src,
-                            finalUrl.href
-                        );
-
-                    if (absolute) {
-                        $(element).attr(
-                            "src",
-                            proxyUrl(absolute)
-                        );
-                    }
-                }
-            );
-
-
-            // Image srcset
-
-            $("img[srcset]").each(
-                (_, element) => {
-
-                    const srcset =
-                        $(element)
-                            .attr("srcset");
-
-                    if (!srcset) return;
-
-                    const rewritten =
-                        srcset
-                            .split(",")
-                            .map(part => {
-
-                                const pieces =
-                                    part
-                                        .trim()
-                                        .split(/\s+/);
-
-                                const resource =
-                                    pieces.shift();
-
-                                const absolute =
-                                    makeAbsolute(
-                                        resource,
-                                        finalUrl.href
-                                    );
-
-                                if (!absolute) {
-                                    return part;
-                                }
-
-                                return [
-                                    proxyUrl(
-                                        absolute
-                                    ),
-                                    ...pieces
-                                ].join(" ");
-                            })
-                            .join(", ");
-
-                    $(element).attr(
-                        "srcset",
-                        rewritten
-                    );
-                }
-            );
-
-
-            // Scripts
-
-            $("script[src]").each(
-                (_, element) => {
-
-                    const src =
-                        $(element)
-                            .attr("src");
-
-                    const absolute =
-                        makeAbsolute(
-                            src,
-                            finalUrl.href
-                        );
-
-                    if (absolute) {
-                        $(element).attr(
-                            "src",
-                            proxyUrl(absolute)
-                        );
-                    }
-                }
-            );
-
-
-            // Stylesheets
-
-            $("link[href]").each(
-                (_, element) => {
-
-                    const href =
-                        $(element)
-                            .attr("href");
-
-                    const absolute =
-                        makeAbsolute(
-                            href,
-                            finalUrl.href
-                        );
-
-                    if (absolute) {
-                        $(element).attr(
-                            "href",
-                            proxyUrl(absolute)
-                        );
-                    }
-                }
-            );
-
-
-            // Forms
-
-            $("form[action]").each(
-                (_, element) => {
-
-                    const action =
-                        $(element)
-                            .attr("action");
-
-                    const absolute =
-                        makeAbsolute(
-                            action,
-                            finalUrl.href
-                        );
-
-                    if (absolute) {
-                        $(element).attr(
-                            "action",
-                            proxyUrl(absolute)
-                        );
-                    }
-                }
-            );
-
-
-            // Media
-
-            $(
-                "video[src]," +
-                "audio[src]," +
-                "source[src]"
-            ).each(
-                (_, element) => {
-
-                    const src =
-                        $(element)
-                            .attr("src");
-
-                    const absolute =
-                        makeAbsolute(
-                            src,
-                            finalUrl.href
-                        );
-
-                    if (absolute) {
-                        $(element).attr(
-                            "src",
-                            proxyUrl(absolute)
-                        );
-                    }
-                }
-            );
-
-
-            // Inline CSS
-
-            $("[style]").each(
-                (_, element) => {
-
-                    const style =
-                        $(element)
-                            .attr("style");
-
-                    if (!style) return;
-
-                    $(element).attr(
-                        "style",
-                        rewriteCss(
-                            style,
-                            finalUrl.href
-                        )
-                    );
-                }
-            );
-
-
-            res.setHeader(
-                "Content-Type",
-                "text/html; charset=utf-8"
-            );
-
-            return res.send(
-                $.html()
-            );
+            return res
+                .status(414)
+                .send(
+                    "URL too long"
+                );
         }
 
+        let targetUrl;
 
-        // =================================================
-        // CSS
-        // =================================================
+        try {
+
+            targetUrl =
+                new URL(target);
+
+        } catch {
+
+            return res
+                .status(400)
+                .send(
+                    "Invalid URL"
+                );
+        }
 
         if (
-            contentType.includes(
-                "text/css"
-            )
+            targetUrl.protocol !==
+                "http:" &&
+            targetUrl.protocol !==
+                "https:"
         ) {
 
-            const css =
-                await response.text();
+            return res
+                .status(400)
+                .send(
+                    "Only HTTP and HTTPS are supported"
+                );
+        }
 
-            const rewrittenCss =
-                rewriteCss(
-                    css,
-                    finalUrl.href
+        if (
+            !(await isSafeTarget(
+                targetUrl
+            ))
+        ) {
+
+            return res
+                .status(403)
+                .send(
+                    "Target address is not allowed"
+                );
+        }
+
+        const {
+            data: session
+        } =
+            getOrCreateSession(
+                req,
+                res
+            );
+
+        try {
+
+            const response =
+                await fetchTarget(
+                    targetUrl,
+                    session
                 );
 
-            res.setHeader(
-                "Content-Type",
-                "text/css; charset=utf-8"
+            const finalUrl =
+                new URL(
+                    response.url
+                );
+
+            const setCookies =
+                typeof response.headers
+                    .getSetCookie ===
+                "function"
+                    ? response.headers
+                        .getSetCookie()
+                    : [];
+
+            storeTargetCookies(
+                session,
+                finalUrl.hostname,
+                setCookies
             );
+
+            console.log(
+                `[PROXY] ${response.status} ${finalUrl.href}`
+            );
+
+            if (!response.ok) {
+
+                return res
+                    .status(response.status)
+                    .send(
+                        `Target returned HTTP ${response.status}`
+                    );
+            }
+
+            const contentType =
+                response.headers.get(
+                    "content-type"
+                ) || "";
+
+
+            // -----------------------------------------
+            // HTML
+            // -----------------------------------------
+
+            if (
+                contentType.includes(
+                    "text/html"
+                )
+            ) {
+
+                const html =
+                    await response.text();
+
+                const rewritten =
+                    rewriteHtml(
+                        html,
+                        finalUrl.href
+                    );
+
+                res.setHeader(
+                    "Content-Type",
+                    "text/html; charset=utf-8"
+                );
+
+                return res.send(
+                    rewritten
+                );
+            }
+
+
+            // -----------------------------------------
+            // CSS
+            // -----------------------------------------
+
+            if (
+                contentType.includes(
+                    "text/css"
+                )
+            ) {
+
+                const css =
+                    await response.text();
+
+                const rewritten =
+                    rewriteCss(
+                        css,
+                        finalUrl.href
+                    );
+
+                res.setHeader(
+                    "Content-Type",
+                    "text/css; charset=utf-8"
+                );
+
+                return res.send(
+                    rewritten
+                );
+            }
+
+
+            // -----------------------------------------
+            // Everything else
+            // -----------------------------------------
+
+            const buffer =
+                Buffer.from(
+                    await response.arrayBuffer()
+                );
+
+            if (contentType) {
+
+                res.setHeader(
+                    "Content-Type",
+                    contentType
+                );
+            }
 
             return res.send(
-                rewrittenCss
+                buffer
             );
+
+        } catch (error) {
+
+            console.error(
+                "[PROXY ERROR]",
+                error
+            );
+
+            if (
+                error.name ===
+                "AbortError"
+            ) {
+
+                return res
+                    .status(504)
+                    .send(
+                        "Target request timed out"
+                    );
+            }
+
+            return res
+                .status(502)
+                .send(
+                    "Failed to retrieve target"
+                );
         }
+    }
+);
 
 
-        // =================================================
-        // OTHER RESOURCES
-        // =================================================
+// =====================================================
+// 404
+// =====================================================
 
-        const buffer =
-            Buffer.from(
-                await response.arrayBuffer()
-            );
+app.use(
+    (req, res) => {
 
-        if (contentType) {
-            res.setHeader(
-                "Content-Type",
-                contentType
-            );
-        }
+        res.status(404).json({
 
-        return res.send(buffer);
+            error:
+                "Route not found",
 
-    } catch (error) {
+            path:
+                req.path
+        });
+    }
+);
+
+
+// =====================================================
+// ERROR HANDLER
+// =====================================================
+
+app.use(
+    (error, req, res, next) => {
 
         console.error(
-            "Proxy error:",
+            "Unhandled error:",
             error
         );
 
-        return res.status(500).send(
-            "Failed to retrieve website"
-        );
+        res.status(500).json({
+
+            error:
+                "Internal server error"
+        });
     }
-});
+);
 
 
 // =====================================================
-// START SERVER
+// START
 // =====================================================
 
-app.listen(PORT, () => {
+app.listen(
+    PORT,
+    () => {
 
-    console.log(
-        `V9 server running on port ${PORT}`
-    );
+        console.log(
+            `V15 server running on port ${PORT}`
+        );
 
-});
+    }
+);
