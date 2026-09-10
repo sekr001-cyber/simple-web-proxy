@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Proxy JavaScript Test</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        button {
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f1f1f1;
+            border-radius: 8px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>JavaScript Test</h1>
+
+    <p>
+        Den här sidan testar om JavaScript kan göra
+        ett API-anrop.
+    </p>
+
+    <button id="testButton">
+        Testa API
+    </button>
+
+    <div id="result">
+        Väntar på test...
+    </div>
+
+
+    <script>
+
+        const button =
+            document.getElementById("testButton");
+
+        const result =
+            document.getElementById("result");
+
+
+        button.addEventListener(
+            "click",
+            async () => {
+
+                result.textContent =
+                    "Hämtar data...";
+
+                try {
+
+                    const response =
+                        await fetch(
+                            "/api?url=" +
+                            encodeURIComponent(
+                                "https://jsonplaceholder.typicode.com/todos/1"
+                            )
+                        );
+
+                    if (!response.ok) {
+                        throw new Error(
+                            "HTTP " +
+                            response.status
+                        );
+                    }
+
+                    const data =
+                        await response.json();
+
+                    result.textContent =
+                        JSON.stringify(
+                            data,
+                            null,
+                            2
+                        );
+
+                } catch (error) {
+
+                    result.textContent =
+                        "Fel: " +
+                        error.message;
+                }
+            }
+        );
+
+    </script>
+
+</body>
+</html>
