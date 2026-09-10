@@ -15,12 +15,8 @@ function proxyUrl(url) {
     return "/proxy?url=" + encodeURIComponent(url);
 }
 
-
 function makeAbsolute(value, baseUrl) {
-
-    if (!value) {
-        return null;
-    }
+    if (!value) return null;
 
     const trimmed = value.trim();
 
@@ -36,12 +32,7 @@ function makeAbsolute(value, baseUrl) {
     }
 
     try {
-
-        const absolute =
-            new URL(
-                trimmed,
-                baseUrl
-            );
+        const absolute = new URL(trimmed, baseUrl);
 
         if (
             absolute.protocol !== "http:" &&
@@ -51,16 +42,94 @@ function makeAbsolute(value, baseUrl) {
         }
 
         return absolute.href;
-
     } catch {
-
         return null;
     }
 }
 
 
 // =====================================================
-// API PROXY
+// COOKIE STORAGE
+// =====================================================
+
+// Temporary in-memory cookie storage.
+// This is intentionally simple for V7.
+// A restart of the Render service clears these cookies.
+
+const cookieJar = new Map();
+
+function getSessionId(req) {
+    const existing = req.headers["x-proxy-session"];
+
+    if (existing) {
+        return existing;
+    }
+
+    return null;
+}
+
+function getCookies(sessionId, hostname) {
+    if (!sessionId) return "";
+
+    const session = cookieJar.get(sessionId);
+
+    if (!session) return "";
+
+    const cookies = session[hostname];
+
+    if (!cookies) return "";
+
+    return Object.entries(cookies)
+        .map(([name, value]) => `${name}=${value}`)
+        .join("; ");
+}
+
+function storeCookies(sessionId, hostname, setCookieHeaders) {
+    if (!sessionId || !setCookieHeaders) return;
+
+    if (!cookieJar.has(sessionId)) {
+        cookieJar.set(sessionId, {});
+    }
+
+    const session = cookieJar.get(sessionId);
+
+    if (!session[hostname]) {
+        session[hostname] = {};
+    }
+
+    for (const header of setCookieHeaders) {
+        const firstPart = header.split(";")[0];
+
+        const separator = firstPart.indexOf("=");
+
+        if (separator === -1) {
+            continue;
+        }
+
+        const name =
+            firstPart.substring(0, separator).trim();
+
+        const value =
+            firstPart.substring(separator + 1).trim();
+
+        if (name) {
+            session[hostname][name] = value;
+        }
+    }
+}
+
+
+// =====================================================
+// TEST
+// =====================================================
+
+app.get("/test", (req, res) => {
+    res.send("V7 SERVER IS RUNNING");
+});
+
+
+// =====================================================
+// API
 // =====================================================
 
 app.get("/api", async (req, res) => {
@@ -93,26 +162,43 @@ app.get("/api", async (req, res) => {
         });
     }
 
-    console.log(
-        "API request:",
-        targetUrl.href
-    );
-
     try {
+
+        const sessionId =
+            getSessionId(req);
+
+        const headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Accept":
+                "application/json,text/plain,*/*"
+        };
+
+        const cookies =
+            getCookies(
+                sessionId,
+                targetUrl.hostname
+            );
+
+        if (cookies) {
+            headers["Cookie"] = cookies;
+        }
 
         const response = await fetch(
             targetUrl.href,
             {
                 redirect: "follow",
-
-                headers: {
-                    "User-Agent":
-                        "Mozilla/5.0",
-
-                    "Accept":
-                        "application/json,text/plain,*/*"
-                }
+                headers
             }
+        );
+
+        console.log(
+            "API request:",
+            targetUrl.href
+        );
+
+        console.log(
+            "API final URL:",
+            response.url
         );
 
         console.log(
@@ -120,13 +206,16 @@ app.get("/api", async (req, res) => {
             response.status
         );
 
-        /*
-         * The final URL after redirects.
-         */
+        // Store cookies returned by the target.
+        const setCookies =
+            typeof response.headers.getSetCookie === "function"
+                ? response.headers.getSetCookie()
+                : [];
 
-        console.log(
-            "API final URL:",
-            response.url
+        storeCookies(
+            sessionId,
+            targetUrl.hostname,
+            setCookies
         );
 
         const body =
@@ -164,7 +253,7 @@ app.get("/api", async (req, res) => {
 
 
 // =====================================================
-// MAIN WEB PROXY
+// MAIN PROXY
 // =====================================================
 
 app.get("/proxy", async (req, res) => {
@@ -180,12 +269,8 @@ app.get("/proxy", async (req, res) => {
     let targetUrl;
 
     try {
-
-        targetUrl =
-            new URL(target);
-
+        targetUrl = new URL(target);
     } catch {
-
         return res.status(400).send(
             "Invalid URL"
         );
@@ -200,36 +285,42 @@ app.get("/proxy", async (req, res) => {
         );
     }
 
-    console.log(
-        "Proxy request:",
-        targetUrl.href
-    );
-
     try {
+
+        const sessionId =
+            getSessionId(req);
+
+        const headers = {
+            "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
+
+            "Accept":
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+        };
+
+        const cookies =
+            getCookies(
+                sessionId,
+                targetUrl.hostname
+            );
+
+        if (cookies) {
+            headers["Cookie"] = cookies;
+        }
+
+        console.log(
+            "Proxy request:",
+            targetUrl.href
+        );
 
         const response =
             await fetch(
                 targetUrl.href,
                 {
                     redirect: "follow",
-
-                    headers: {
-                        "User-Agent":
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
-
-                        "Accept":
-                            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
-                    }
+                    headers
                 }
             );
-
-
-        /*
-         * IMPORTANT:
-         *
-         * response.url contains the final URL
-         * after redirects.
-         */
 
         const finalUrl =
             new URL(response.url);
@@ -239,22 +330,30 @@ app.get("/proxy", async (req, res) => {
             finalUrl.href
         );
 
-
         console.log(
             "Upstream status:",
             response.status
         );
 
+        // Save cookies from the target.
+        const setCookies =
+            typeof response.headers.getSetCookie === "function"
+                ? response.headers.getSetCookie()
+                : [];
+
+        storeCookies(
+            sessionId,
+            finalUrl.hostname,
+            setCookies
+        );
 
         if (!response.ok) {
-
             return res
                 .status(response.status)
                 .send(
                     `Target returned HTTP ${response.status}`
                 );
         }
-
 
         const contentType =
             response.headers.get(
@@ -278,17 +377,10 @@ app.get("/proxy", async (req, res) => {
             const $ =
                 cheerio.load(html);
 
-
-            /*
-             * Remove base tags.
-             */
-
             $("base").remove();
 
 
-            // =================================================
-            // LINKS
-            // =================================================
+            // Links
 
             $("a[href]").each(
                 (_, element) => {
@@ -304,21 +396,16 @@ app.get("/proxy", async (req, res) => {
                         );
 
                     if (absolute) {
-
                         $(element).attr(
                             "href",
-                            proxyUrl(
-                                absolute
-                            )
+                            proxyUrl(absolute)
                         );
                     }
                 }
             );
 
 
-            // =================================================
-            // IMAGES
-            // =================================================
+            // Images
 
             $("img[src]").each(
                 (_, element) => {
@@ -334,76 +421,16 @@ app.get("/proxy", async (req, res) => {
                         );
 
                     if (absolute) {
-
                         $(element).attr(
                             "src",
-                            proxyUrl(
-                                absolute
-                            )
+                            proxyUrl(absolute)
                         );
                     }
                 }
             );
 
 
-            // =================================================
-            // IMAGE SRCSET
-            // =================================================
-
-            $("img[srcset]").each(
-                (_, element) => {
-
-                    const srcset =
-                        $(element)
-                            .attr("srcset");
-
-                    if (!srcset) {
-                        return;
-                    }
-
-                    const rewritten =
-                        srcset
-                            .split(",")
-                            .map(part => {
-
-                                const pieces =
-                                    part
-                                        .trim()
-                                        .split(/\s+/);
-
-                                const resource =
-                                    pieces.shift();
-
-                                const absolute =
-                                    makeAbsolute(
-                                        resource,
-                                        finalUrl.href
-                                    );
-
-                                if (!absolute) {
-                                    return part;
-                                }
-
-                                return [
-                                    proxyUrl(
-                                        absolute
-                                    ),
-                                    ...pieces
-                                ].join(" ");
-                            })
-                            .join(", ");
-
-                    $(element).attr(
-                        "srcset",
-                        rewritten
-                    );
-                }
-            );
-
-
-            // =================================================
-            // JAVASCRIPT
-            // =================================================
+            // Scripts
 
             $("script[src]").each(
                 (_, element) => {
@@ -419,21 +446,16 @@ app.get("/proxy", async (req, res) => {
                         );
 
                     if (absolute) {
-
                         $(element).attr(
                             "src",
-                            proxyUrl(
-                                absolute
-                            )
+                            proxyUrl(absolute)
                         );
                     }
                 }
             );
 
 
-            // =================================================
-            // CSS / OTHER LINK RESOURCES
-            // =================================================
+            // Stylesheets
 
             $("link[href]").each(
                 (_, element) => {
@@ -449,21 +471,16 @@ app.get("/proxy", async (req, res) => {
                         );
 
                     if (absolute) {
-
                         $(element).attr(
                             "href",
-                            proxyUrl(
-                                absolute
-                            )
+                            proxyUrl(absolute)
                         );
                     }
                 }
             );
 
 
-            // =================================================
-            // FORMS
-            // =================================================
+            // Forms
 
             $("form[action]").each(
                 (_, element) => {
@@ -479,21 +496,16 @@ app.get("/proxy", async (req, res) => {
                         );
 
                     if (absolute) {
-
                         $(element).attr(
                             "action",
-                            proxyUrl(
-                                absolute
-                            )
+                            proxyUrl(absolute)
                         );
                     }
                 }
             );
 
 
-            // =================================================
-            // VIDEO / AUDIO / SOURCE
-            // =================================================
+            // Media
 
             $(
                 "video[src]," +
@@ -513,21 +525,16 @@ app.get("/proxy", async (req, res) => {
                         );
 
                     if (absolute) {
-
                         $(element).attr(
                             "src",
-                            proxyUrl(
-                                absolute
-                            )
+                            proxyUrl(absolute)
                         );
                     }
                 }
             );
 
 
-            // =================================================
-            // INLINE CSS
-            // =================================================
+            // Inline CSS
 
             $("[style]").each(
                 (_, element) => {
@@ -536,9 +543,7 @@ app.get("/proxy", async (req, res) => {
                         $(element)
                             .attr("style");
 
-                    if (!style) {
-                        return;
-                    }
+                    if (!style) return;
 
                     style =
                         style.replace(
@@ -573,10 +578,6 @@ app.get("/proxy", async (req, res) => {
             );
 
 
-            // =================================================
-            // SEND HTML
-            // =================================================
-
             res.setHeader(
                 "Content-Type",
                 "text/html; charset=utf-8"
@@ -589,7 +590,7 @@ app.get("/proxy", async (req, res) => {
 
 
         // =================================================
-        // NON-HTML RESOURCES
+        // OTHER RESOURCES
         // =================================================
 
         const buffer =
@@ -597,19 +598,14 @@ app.get("/proxy", async (req, res) => {
                 await response.arrayBuffer()
             );
 
-
         if (contentType) {
-
             res.setHeader(
                 "Content-Type",
                 contentType
             );
         }
 
-
-        return res.send(
-            buffer
-        );
+        return res.send(buffer);
 
     } catch (error) {
 
@@ -630,9 +626,7 @@ app.get("/proxy", async (req, res) => {
 // =====================================================
 
 app.listen(PORT, () => {
-
     console.log(
-        `V6 server running on port ${PORT}`
+        `V7 server running on port ${PORT}`
     );
-
 });
