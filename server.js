@@ -135,11 +135,37 @@ function rewriteCss(css, baseUrl) {
 
 
 // =====================================================
+// REQUEST LOGGER
+// =====================================================
+
+function logRequest(type, url, status) {
+
+    console.log(
+        `[${type}] ${status} ${url}`
+    );
+}
+
+
+// =====================================================
+// HEALTH CHECK
+// =====================================================
+
+app.get("/health", (req, res) => {
+
+    res.json({
+        status: "ok",
+        version: "V9",
+        uptime: Math.round(process.uptime())
+    });
+});
+
+
+// =====================================================
 // TEST
 // =====================================================
 
 app.get("/test", (req, res) => {
-    res.send("V8 SERVER IS RUNNING");
+    res.send("V9 SERVER IS RUNNING");
 });
 
 
@@ -209,18 +235,9 @@ app.get("/api", async (req, res) => {
                 }
             );
 
-        console.log(
-            "API request:",
-            targetUrl.href
-        );
-
-        console.log(
-            "API final URL:",
-            response.url
-        );
-
-        console.log(
-            "API status:",
+        logRequest(
+            "API",
+            response.url,
             response.status
         );
 
@@ -232,7 +249,7 @@ app.get("/api", async (req, res) => {
 
         storeCookies(
             sessionId,
-            targetUrl.hostname,
+            new URL(response.url).hostname,
             setCookies
         );
 
@@ -343,13 +360,9 @@ app.get("/proxy", async (req, res) => {
         const finalUrl =
             new URL(response.url);
 
-        console.log(
-            "Final URL:",
-            finalUrl.href
-        );
-
-        console.log(
-            "Upstream status:",
+        logRequest(
+            "PROXY",
+            finalUrl.href,
             response.status
         );
 
@@ -366,6 +379,7 @@ app.get("/proxy", async (req, res) => {
         );
 
         if (!response.ok) {
+
             return res
                 .status(response.status)
                 .send(
@@ -444,6 +458,57 @@ app.get("/proxy", async (req, res) => {
                             proxyUrl(absolute)
                         );
                     }
+                }
+            );
+
+
+            // Image srcset
+
+            $("img[srcset]").each(
+                (_, element) => {
+
+                    const srcset =
+                        $(element)
+                            .attr("srcset");
+
+                    if (!srcset) return;
+
+                    const rewritten =
+                        srcset
+                            .split(",")
+                            .map(part => {
+
+                                const pieces =
+                                    part
+                                        .trim()
+                                        .split(/\s+/);
+
+                                const resource =
+                                    pieces.shift();
+
+                                const absolute =
+                                    makeAbsolute(
+                                        resource,
+                                        finalUrl.href
+                                    );
+
+                                if (!absolute) {
+                                    return part;
+                                }
+
+                                return [
+                                    proxyUrl(
+                                        absolute
+                                    ),
+                                    ...pieces
+                                ].join(" ");
+                            })
+                            .join(", ");
+
+                    $(element).attr(
+                        "srcset",
+                        rewritten
+                    );
                 }
             );
 
@@ -557,7 +622,7 @@ app.get("/proxy", async (req, res) => {
             $("[style]").each(
                 (_, element) => {
 
-                    let style =
+                    const style =
                         $(element)
                             .attr("style");
 
@@ -654,6 +719,7 @@ app.get("/proxy", async (req, res) => {
 app.listen(PORT, () => {
 
     console.log(
-        `V8 server running on port ${PORT}`
+        `V9 server running on port ${PORT}`
     );
+
 });
