@@ -1,7 +1,7 @@
 {
   "name": "simple-web-proxy",
-  "version": "15.0.0",
-  "description": "Simple web proxy",
+  "version": "16.0.0",
+  "description": "Simple web proxy V16",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -11,4 +11,3 @@
     "express": "^5.1.0"
   }
 }
-
