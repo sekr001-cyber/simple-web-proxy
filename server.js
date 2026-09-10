@@ -52,20 +52,10 @@ function makeAbsolute(value, baseUrl) {
 // COOKIE STORAGE
 // =====================================================
 
-// Temporary in-memory cookie storage.
-// This is intentionally simple for V7.
-// A restart of the Render service clears these cookies.
-
 const cookieJar = new Map();
 
 function getSessionId(req) {
-    const existing = req.headers["x-proxy-session"];
-
-    if (existing) {
-        return existing;
-    }
-
-    return null;
+    return req.headers["x-proxy-session"] || null;
 }
 
 function getCookies(sessionId, hostname) {
@@ -99,12 +89,9 @@ function storeCookies(sessionId, hostname, setCookieHeaders) {
 
     for (const header of setCookieHeaders) {
         const firstPart = header.split(";")[0];
-
         const separator = firstPart.indexOf("=");
 
-        if (separator === -1) {
-            continue;
-        }
+        if (separator === -1) continue;
 
         const name =
             firstPart.substring(0, separator).trim();
@@ -120,11 +107,39 @@ function storeCookies(sessionId, hostname, setCookieHeaders) {
 
 
 // =====================================================
+// CSS REWRITER
+// =====================================================
+
+function rewriteCss(css, baseUrl) {
+
+    return css.replace(
+        /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,
+        (match, quote, resource) => {
+
+            const absolute =
+                makeAbsolute(
+                    resource,
+                    baseUrl
+                );
+
+            if (!absolute) {
+                return match;
+            }
+
+            return `url("${proxyUrl(
+                absolute
+            )}")`;
+        }
+    );
+}
+
+
+// =====================================================
 // TEST
 // =====================================================
 
 app.get("/test", (req, res) => {
-    res.send("V7 SERVER IS RUNNING");
+    res.send("V8 SERVER IS RUNNING");
 });
 
 
@@ -168,7 +183,9 @@ app.get("/api", async (req, res) => {
             getSessionId(req);
 
         const headers = {
-            "User-Agent": "Mozilla/5.0",
+            "User-Agent":
+                "Mozilla/5.0",
+
             "Accept":
                 "application/json,text/plain,*/*"
         };
@@ -183,13 +200,14 @@ app.get("/api", async (req, res) => {
             headers["Cookie"] = cookies;
         }
 
-        const response = await fetch(
-            targetUrl.href,
-            {
-                redirect: "follow",
-                headers
-            }
-        );
+        const response =
+            await fetch(
+                targetUrl.href,
+                {
+                    redirect: "follow",
+                    headers
+                }
+            );
 
         console.log(
             "API request:",
@@ -206,9 +224,9 @@ app.get("/api", async (req, res) => {
             response.status
         );
 
-        // Store cookies returned by the target.
         const setCookies =
-            typeof response.headers.getSetCookie === "function"
+            typeof response.headers.getSetCookie ===
+            "function"
                 ? response.headers.getSetCookie()
                 : [];
 
@@ -295,7 +313,7 @@ app.get("/proxy", async (req, res) => {
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
 
             "Accept":
-                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+                "*/*"
         };
 
         const cookies =
@@ -335,9 +353,9 @@ app.get("/proxy", async (req, res) => {
             response.status
         );
 
-        // Save cookies from the target.
         const setCookies =
-            typeof response.headers.getSetCookie === "function"
+            typeof response.headers.getSetCookie ===
+            "function"
                 ? response.headers.getSetCookie()
                 : [];
 
@@ -545,34 +563,12 @@ app.get("/proxy", async (req, res) => {
 
                     if (!style) return;
 
-                    style =
-                        style.replace(
-                            /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,
-                            (
-                                match,
-                                quote,
-                                resource
-                            ) => {
-
-                                const absolute =
-                                    makeAbsolute(
-                                        resource,
-                                        finalUrl.href
-                                    );
-
-                                if (!absolute) {
-                                    return match;
-                                }
-
-                                return `url("${proxyUrl(
-                                    absolute
-                                )}")`;
-                            }
-                        );
-
                     $(element).attr(
                         "style",
-                        style
+                        rewriteCss(
+                            style,
+                            finalUrl.href
+                        )
                     );
                 }
             );
@@ -585,6 +581,36 @@ app.get("/proxy", async (req, res) => {
 
             return res.send(
                 $.html()
+            );
+        }
+
+
+        // =================================================
+        // CSS
+        // =================================================
+
+        if (
+            contentType.includes(
+                "text/css"
+            )
+        ) {
+
+            const css =
+                await response.text();
+
+            const rewrittenCss =
+                rewriteCss(
+                    css,
+                    finalUrl.href
+                );
+
+            res.setHeader(
+                "Content-Type",
+                "text/css; charset=utf-8"
+            );
+
+            return res.send(
+                rewrittenCss
             );
         }
 
@@ -626,7 +652,8 @@ app.get("/proxy", async (req, res) => {
 // =====================================================
 
 app.listen(PORT, () => {
+
     console.log(
-        `V7 server running on port ${PORT}`
+        `V8 server running on port ${PORT}`
     );
 });
