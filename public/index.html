@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -13,337 +12,276 @@
     box-sizing: border-box;
 }
 
+html,
 body {
     margin: 0;
-    min-height: 100vh;
-
-    background: #fff;
-
-    color: #202124;
-
-    font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
+    min-height: 100%;
 }
 
+body {
+    background: #fff;
+    color: #202124;
+    font-family: Arial, Helvetica, sans-serif;
+}
 
-/* =========================
-   HEADER
-========================= */
+/* HEADER */
 
 header {
-
     height: 64px;
 
     display: flex;
     align-items: center;
     justify-content: flex-end;
 
-    padding: 0 24px;
+    padding: 0 28px;
 
     border-bottom: 1px solid #f1f3f4;
 }
 
-.header-links {
-
+.nav {
     display: flex;
     align-items: center;
-
     gap: 22px;
-
-    font-size: 14px;
 }
 
-.header-links button {
-
+.nav button {
     border: 0;
-
     background: transparent;
 
     color: #202124;
 
-    cursor: pointer;
-
     font-size: 14px;
+
+    cursor: pointer;
 }
 
-.header-links button:hover {
-
+.nav button:hover {
     text-decoration: underline;
 }
 
-
-/* =========================
-   MAIN
-========================= */
+/* MAIN */
 
 main {
-
-    width: 100%;
-
-    max-width: 800px;
+    width: min(760px, calc(100% - 32px));
 
     margin: 0 auto;
 
-    padding: 150px 20px 80px;
+    padding-top: 145px;
 
     text-align: center;
 }
 
-
-/* =========================
-   LOGO
-========================= */
+/* LOGO */
 
 .logo {
+    margin-bottom: 32px;
 
-    margin-bottom: 34px;
-
-    font-size: 64px;
-
+    font-size: 62px;
     font-weight: 500;
 
     letter-spacing: -4px;
 }
 
-.logo .blue {
+.logo .s1 {
     color: #4285f4;
 }
 
-.logo .red {
+.logo .s2 {
     color: #ea4335;
 }
 
-.logo .yellow {
+.logo .s3 {
     color: #fbbc05;
 }
 
-.logo .green {
+.logo .s4 {
+    color: #4285f4;
+}
+
+.logo .s5 {
     color: #34a853;
 }
 
+.logo .s6 {
+    color: #ea4335;
+}
 
-/* =========================
-   SEARCH
-========================= */
+.logo .proxy {
+    color: #202124;
+    letter-spacing: -2px;
+}
+
+/* SEARCH */
+
+.search-wrapper {
+    position: relative;
+}
 
 .search-box {
-
-    width: 100%;
-
-    height: 50px;
+    height: 52px;
 
     display: flex;
     align-items: center;
 
+    padding: 0 8px 0 18px;
+
     border: 1px solid #dfe1e5;
+    border-radius: 28px;
 
-    border-radius: 25px;
-
-    padding: 0 16px;
+    background: #fff;
 
     box-shadow:
-        0 1px 6px rgba(32,33,36,.15);
+        0 1px 6px rgba(32, 33, 36, .15);
 
     transition:
-        box-shadow .15s,
-        border-color .15s;
+        box-shadow .15s ease;
 }
 
 .search-box:hover,
 .search-box:focus-within {
-
     box-shadow:
-        0 1px 8px rgba(32,33,36,.25);
+        0 1px 10px rgba(32, 33, 36, .22);
 }
 
 .search-icon {
-
     color: #9aa0a6;
 
-    font-size: 20px;
+    font-size: 19px;
 
     margin-right: 12px;
 }
 
 #search {
-
     flex: 1;
+
+    min-width: 0;
 
     height: 100%;
 
     border: 0;
-
     outline: 0;
 
-    font-size: 16px;
+    background: transparent;
 
     color: #202124;
 
-    background: transparent;
+    font-size: 16px;
 }
 
-.search-button {
+#search::placeholder {
+    color: #80868b;
+}
 
+.clear-button {
+    display: none;
+
+    width: 36px;
     height: 36px;
-
-    padding: 0 17px;
 
     border: 0;
 
-    border-radius: 4px;
+    background: transparent;
 
-    background: #f8f9fa;
+    color: #5f6368;
 
-    color: #202124;
+    font-size: 20px;
 
     cursor: pointer;
-
-    font-size: 14px;
 }
 
-.search-button:hover {
-
-    border: 1px solid #dadce0;
-
-    box-shadow:
-        0 1px 1px rgba(0,0,0,.1);
+.clear-button.visible {
+    display: block;
 }
 
-
-/* =========================
-   BUTTONS
-========================= */
+/* BUTTONS */
 
 .buttons {
-
-    margin-top: 28px;
-
     display: flex;
 
     justify-content: center;
 
     gap: 12px;
+
+    margin-top: 28px;
 }
 
 .buttons button {
+    min-width: 130px;
 
     padding: 10px 18px;
 
     border: 1px solid #f8f9fa;
-
     border-radius: 4px;
 
     background: #f8f9fa;
 
     color: #202124;
 
-    cursor: pointer;
-
     font-size: 14px;
+
+    cursor: pointer;
 }
 
 .buttons button:hover {
-
     border-color: #dadce0;
 
     box-shadow:
-        0 1px 1px rgba(0,0,0,.1);
+        0 1px 1px rgba(0, 0, 0, .1);
 }
 
+/* SEARCH ENGINE CHOICE */
 
-/* =========================
-   INFO
-========================= */
-
-.info {
-
-    margin-top: 55px;
+.engines {
+    margin-top: 30px;
 
     color: #70757a;
 
     font-size: 13px;
 }
 
-.info span {
+.engine-buttons {
+    display: flex;
+
+    justify-content: center;
+
+    gap: 8px;
+
+    margin-top: 10px;
+}
+
+.engine-buttons button {
+    border: 0;
+
+    background: transparent;
 
     color: #4285f4;
-}
 
-
-/* =========================
-   SEARCH RESULTS
-========================= */
-
-#results {
-
-    display: none;
-
-    text-align: left;
-
-    margin-top: 55px;
-}
-
-.result {
-
-    margin-bottom: 30px;
-}
-
-.result-url {
-
-    color: #188038;
+    cursor: pointer;
 
     font-size: 13px;
 
-    margin-bottom: 4px;
-
-    word-break: break-all;
+    padding: 5px 8px;
 }
 
-.result-title {
-
-    color: #1a0dab;
-
-    font-size: 20px;
-
-    margin-bottom: 5px;
-
-    cursor: pointer;
-}
-
-.result-title:hover {
-
+.engine-buttons button:hover {
     text-decoration: underline;
 }
 
-.result-description {
+/* STATUS */
 
-    color: #4d5156;
+#status {
+    min-height: 20px;
 
-    font-size: 14px;
-
-    line-height: 1.5;
-
-    max-width: 650px;
-}
-
-.search-meta {
+    margin-top: 30px;
 
     color: #70757a;
 
     font-size: 13px;
-
-    margin-bottom: 25px;
 }
 
-
-/* =========================
-   FOOTER
-========================= */
+/* FOOTER */
 
 footer {
-
     position: fixed;
 
     left: 0;
@@ -356,40 +294,29 @@ footer {
     align-items: center;
     justify-content: center;
 
-    border-top: 1px solid #dadce0;
-
     background: #f2f2f2;
+
+    border-top: 1px solid #dadce0;
 
     color: #70757a;
 
     font-size: 13px;
 }
 
-
-/* =========================
-   MOBILE
-========================= */
+/* MOBILE */
 
 @media (max-width: 600px) {
 
     header {
-        padding: 0 15px;
+        padding: 0 16px;
     }
 
     main {
-        padding-top: 100px;
+        padding-top: 95px;
     }
 
     .logo {
         font-size: 48px;
-    }
-
-    .search-box {
-        height: 48px;
-    }
-
-    .search-button {
-        display: none;
     }
 
     .buttons {
@@ -398,30 +325,32 @@ footer {
     }
 
     .buttons button {
-        width: 180px;
+        width: 200px;
+    }
+
+    .engine-buttons {
+        flex-wrap: wrap;
     }
 }
 
 </style>
-
 </head>
 
 <body>
 
-
 <header>
 
-    <div class="header-links">
-
-        <button onclick="showBookmarks()">
-            Bokmärken
-        </button>
+    <div class="nav">
 
         <button onclick="showHistory()">
             Historik
         </button>
 
-        <button onclick="health()">
+        <button onclick="showBookmarks()">
+            Bokmärken
+        </button>
+
+        <button onclick="checkStatus()">
             Status
         </button>
 
@@ -434,9 +363,9 @@ footer {
 
     <div class="logo">
 
-        <span class="blue">S</span><span class="red">i</span><span class="yellow">m</span><span class="blue">p</span><span class="green">l</span><span class="red">e</span>
+        <span class="s1">S</span><span class="s2">i</span><span class="s3">m</span><span class="s4">p</span><span class="s5">l</span><span class="s6">e</span>
 
-        <span style="color:#202124">
+        <span class="proxy">
             Proxy
         </span>
 
@@ -445,25 +374,31 @@ footer {
 
     <form id="searchForm">
 
-        <div class="search-box">
+        <div class="search-wrapper">
 
-            <div class="search-icon">
-                🔍
+            <div class="search-box">
+
+                <span class="search-icon">
+                    🔍
+                </span>
+
+                <input
+                    id="search"
+                    type="text"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="Sök eller skriv en webbadress"
+                >
+
+                <button
+                    id="clearButton"
+                    class="clear-button"
+                    type="button"
+                    aria-label="Rensa">
+                    ×
+                </button>
+
             </div>
-
-            <input
-                id="search"
-                autocomplete="off"
-                placeholder="Sök eller skriv en webbadress"
-            >
-
-            <button
-                class="search-button"
-                type="submit">
-
-                Sök
-
-            </button>
 
         </div>
 
@@ -472,8 +407,12 @@ footer {
 
     <div class="buttons">
 
-        <button onclick="focusSearch()">
-            Sök
+        <button onclick="searchDuckDuckGo()">
+            DuckDuckGo
+        </button>
+
+        <button onclick="openInputAsUrl()">
+            Öppna URL
         </button>
 
         <button onclick="openExample()">
@@ -483,254 +422,238 @@ footer {
     </div>
 
 
-    <div
-        class="info"
-        id="info">
+    <div class="engines">
 
-        Sök på webben eller öppna en URL genom proxyn.
+        Sök med
 
-        <br><br>
+        <div class="engine-buttons">
 
-        <span>
-            V20
-        </span>
+            <button onclick="searchDuckDuckGo()">
+                DuckDuckGo
+            </button>
+
+            <button onclick="searchBing()">
+                Bing
+            </button>
+
+        </div>
 
     </div>
 
 
-    <div id="results"></div>
+    <div id="status">
+        Sök på webben eller öppna en webbadress genom proxyn.
+    </div>
 
 </main>
 
 
 <footer>
-
-    Simple Proxy · V20
-
+    Simple Proxy · V21
 </footer>
 
 
 <script>
 
-
-const searchInput =
+const input =
     document.getElementById("search");
 
-const searchForm =
+const form =
     document.getElementById("searchForm");
 
-const results =
-    document.getElementById("results");
+const clearButton =
+    document.getElementById("clearButton");
 
-const info =
-    document.getElementById("info");
+const status =
+    document.getElementById("status");
 
 
 /* =========================
    INPUT
 ========================= */
 
-function getInputType(value) {
+function getValue() {
 
-    value = value.trim();
+    return input.value.trim();
+
+}
+
+
+/* =========================
+   URL DETECTION
+========================= */
+
+function isUrl(value) {
 
     if (!value) {
-        return null;
+        return false;
     }
 
     if (
         value.startsWith("http://") ||
         value.startsWith("https://")
     ) {
-
-        return {
-            type: "url",
-            value
-        };
+        return true;
     }
 
     if (
         value.includes(".") &&
         !value.includes(" ")
     ) {
-
-        return {
-            type: "url",
-            value:
-                "https://" + value
-        };
+        return true;
     }
 
-    return {
-        type: "search",
-        value
-    };
+    return false;
+
+}
+
+
+function normalizeUrl(value) {
+
+    if (
+        value.startsWith("http://") ||
+        value.startsWith("https://")
+    ) {
+        return value;
+    }
+
+    return "https://" + value;
+
 }
 
 
 /* =========================
-   SUBMIT
+   PROXY URL
 ========================= */
 
-searchForm.addEventListener(
+function openThroughProxy(url) {
+
+    window.location.href =
+        "/proxy?url=" +
+        encodeURIComponent(url);
+
+}
+
+
+/* =========================
+   FORM
+========================= */
+
+form.addEventListener(
     "submit",
-    async function(event) {
+    function(event) {
 
         event.preventDefault();
 
-        const input =
-            getInputType(
-                searchInput.value
+        const value =
+            getValue();
+
+        if (!value) {
+
+            input.focus();
+
+            return;
+        }
+
+        if (isUrl(value)) {
+
+            openThroughProxy(
+                normalizeUrl(value)
             );
 
-        if (!input) {
             return;
         }
 
-        if (input.type === "url") {
+        searchDuckDuckGo();
 
-            window.location.href =
-                "/proxy?url=" +
-                encodeURIComponent(
-                    input.value
-                );
-
-            return;
-        }
-
-        await search(
-            input.value
-        );
     }
 );
 
 
 /* =========================
-   SEARCH
+   DUCKDUCKGO
 ========================= */
 
-async function search(query) {
+function searchDuckDuckGo() {
 
-    info.textContent =
-        "Söker...";
+    const query =
+        getValue();
 
-    results.style.display =
-        "none";
+    if (!query) {
 
-    try {
-
-        const response =
-            await fetch(
-                "/api/search?q=" +
-                encodeURIComponent(
-                    query
-                )
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-            throw new Error(
-                data.error ||
-                "Search failed"
-            );
-        }
-
-        renderResults(
-            data.results,
-            query
-        );
-
-    } catch (error) {
-
-        console.error(error);
-
-        info.textContent =
-            "Kunde inte genomföra sökningen.";
-
-    }
-}
-
-
-/* =========================
-   RESULTS
-========================= */
-
-function renderResults(
-    items,
-    query
-) {
-
-    info.textContent =
-        `${items.length} resultat för "${query}"`;
-
-    results.style.display =
-        "block";
-
-    if (!items.length) {
-
-        results.innerHTML = `
-            <div class="search-meta">
-                Inga resultat hittades.
-            </div>
-        `;
+        input.focus();
 
         return;
     }
 
-    results.innerHTML =
-        items.map(item => {
+    const url =
+        "https://duckduckgo.com/?q=" +
+        encodeURIComponent(query);
 
-            const safeTitle =
-                escapeHtml(
-                    item.title
-                );
+    status.textContent =
+        "Öppnar DuckDuckGo genom proxyn...";
 
-            const safeUrl =
-                escapeHtml(
-                    item.url
-                );
+    openThroughProxy(url);
 
-            const safeDescription =
-                escapeHtml(
-                    item.description ||
-                    ""
-                );
-
-            return `
-                <div class="result">
-
-                    <div class="result-url">
-                        ${safeUrl}
-                    </div>
-
-                    <div
-                        class="result-title"
-                        onclick="openResult(${JSON.stringify(item.url)})">
-
-                        ${safeTitle}
-
-                    </div>
-
-                    <div class="result-description">
-
-                        ${safeDescription}
-
-                    </div>
-
-                </div>
-            `;
-
-        }).join("");
 }
 
 
-function openResult(url) {
+/* =========================
+   BING
+========================= */
 
-    window.location.href =
-        "/proxy?url=" +
-        encodeURIComponent(url);
+function searchBing() {
+
+    const query =
+        getValue();
+
+    if (!query) {
+
+        input.focus();
+
+        return;
+    }
+
+    const url =
+        "https://www.bing.com/search?q=" +
+        encodeURIComponent(query);
+
+    status.textContent =
+        "Öppnar Bing genom proxyn...";
+
+    openThroughProxy(url);
+
+}
+
+
+/* =========================
+   OPEN URL
+========================= */
+
+function openInputAsUrl() {
+
+    const value =
+        getValue();
+
+    if (!value) {
+
+        input.focus();
+
+        return;
+    }
+
+    if (!isUrl(value)) {
+
+        status.textContent =
+            "Det ser inte ut som en webbadress.";
+
+        return;
+    }
+
+    openThroughProxy(
+        normalizeUrl(value)
+    );
+
 }
 
 
@@ -740,29 +663,53 @@ function openResult(url) {
 
 function openExample() {
 
-    window.location.href =
-        "/proxy?url=" +
-        encodeURIComponent(
-            "https://example.com/"
-        );
+    openThroughProxy(
+        "https://example.com/"
+    );
+
 }
 
 
 /* =========================
-   SEARCH FOCUS
+   CLEAR
 ========================= */
 
-function focusSearch() {
+input.addEventListener(
+    "input",
+    function() {
 
-    searchInput.focus();
-}
+        clearButton.classList.toggle(
+            "visible",
+            Boolean(input.value)
+        );
+
+    }
+);
+
+clearButton.addEventListener(
+    "click",
+    function() {
+
+        input.value = "";
+
+        clearButton.classList.remove(
+            "visible"
+        );
+
+        input.focus();
+
+    }
+);
 
 
 /* =========================
    STATUS
 ========================= */
 
-async function health() {
+async function checkStatus() {
+
+    status.textContent =
+        "Kontrollerar servern...";
 
     try {
 
@@ -777,21 +724,21 @@ async function health() {
         const data =
             await response.json();
 
-        alert(
-            `Server online\nVersion: ${data.version}\nUptime: ${data.uptime}s`
-        );
+        status.textContent =
+            `Server online · ${data.version} · uptime ${data.uptime}s`;
 
     } catch {
 
-        alert(
-            "Servern kunde inte kontaktas."
-        );
+        status.textContent =
+            "Kunde inte kontakta servern.";
+
     }
+
 }
 
 
 /* =========================
-   SESSION
+   HISTORY
 ========================= */
 
 async function showHistory() {
@@ -833,9 +780,15 @@ async function showHistory() {
         alert(
             "Kunde inte hämta historiken."
         );
+
     }
+
 }
 
+
+/* =========================
+   BOOKMARKS
+========================= */
 
 async function showBookmarks() {
 
@@ -875,38 +828,17 @@ async function showBookmarks() {
         alert(
             "Kunde inte hämta bokmärken."
         );
+
     }
+
 }
 
 
 /* =========================
-   ESCAPE
+   START
 ========================= */
 
-function escapeHtml(value) {
-
-    return String(value)
-        .replaceAll(
-            "&",
-            "&amp;"
-        )
-        .replaceAll(
-            "<",
-            "&lt;"
-        )
-        .replaceAll(
-            ">",
-            "&gt;"
-        )
-        .replaceAll(
-            '"',
-            "&quot;"
-        )
-        .replaceAll(
-            "'",
-            "&#039;"
-        );
-}
+input.focus();
 
 </script>
 
