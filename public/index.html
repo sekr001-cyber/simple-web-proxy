@@ -1,915 +1,536 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Simple Web Proxy</title>
-
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        :root {
-            --bg: #0b0f14;
-            --panel: #111720;
-            --panel-2: #171e29;
-            --border: #273140;
-            --text: #f1f5f9;
-            --muted: #94a3b8;
-            --blue: #4f8cff;
-            --blue-hover: #6b9cff;
-            --green: #36d399;
-            --red: #ff6b6b;
-        }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            background:
-                radial-gradient(
-                    circle at top,
-                    #172235 0%,
-                    var(--bg) 42%
-                );
-            color: var(--text);
-            font-family:
-                Inter,
-                system-ui,
-                -apple-system,
-                BlinkMacSystemFont,
-                "Segoe UI",
-                sans-serif;
-        }
-
-        button,
-        input {
-            font: inherit;
-        }
-
-        .app {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* ==============================
-           TOP BAR
-        ============================== */
-
-        .topbar {
-            height: 64px;
-            display: flex;
-            align-items: center;
-            gap: 18px;
-            padding: 0 22px;
-
-            background: rgba(11, 15, 20, 0.88);
-            border-bottom: 1px solid var(--border);
-
-            backdrop-filter: blur(14px);
-
-            position: sticky;
-            top: 0;
-            z-index: 20;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-
-            min-width: 180px;
-
-            font-weight: 700;
-            letter-spacing: -0.3px;
-        }
-
-        .logo-icon {
-            width: 34px;
-            height: 34px;
-
-            display: grid;
-            place-items: center;
-
-            border-radius: 9px;
-
-            background: var(--blue);
-
-            font-size: 18px;
-        }
-
-        .logo-text span {
-            color: var(--blue);
-        }
 
-        .toolbar {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        .tool-btn {
-            width: 36px;
-            height: 36px;
+<title>Simple Proxy</title>
 
-            border: 1px solid var(--border);
-            border-radius: 8px;
+<style>
 
-            background: var(--panel);
-            color: var(--text);
+* {
+    box-sizing: border-box;
+}
 
-            cursor: pointer;
+body {
+    margin: 0;
+    min-height: 100vh;
 
-            transition:
-                background 0.15s,
-                border-color 0.15s;
-        }
+    background: #fff;
 
-        .tool-btn:hover {
-            background: var(--panel-2);
-            border-color: #3b4758;
-        }
+    color: #202124;
 
-        /* ==============================
-           ADDRESS BAR
-        ============================== */
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+}
 
-        .address-wrap {
-            flex: 1;
 
-            display: flex;
-            align-items: center;
+/* =========================
+   HEADER
+========================= */
 
-            max-width: 900px;
-            margin: 0 auto;
-        }
+header {
 
-        .address-bar {
-            width: 100%;
+    height: 64px;
 
-            display: flex;
-            align-items: center;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
 
-            background: var(--panel);
-            border: 1px solid var(--border);
+    padding: 0 24px;
 
-            border-radius: 11px;
+    border-bottom: 1px solid #f1f3f4;
+}
 
-            overflow: hidden;
+.header-links {
 
-            transition:
-                border-color 0.15s,
-                box-shadow 0.15s;
-        }
+    display: flex;
+    align-items: center;
 
-        .address-bar:focus-within {
-            border-color: var(--blue);
+    gap: 22px;
 
-            box-shadow:
-                0 0 0 3px rgba(79, 140, 255, 0.12);
-        }
+    font-size: 14px;
+}
 
-        .address-icon {
-            padding-left: 14px;
-            color: var(--muted);
-        }
+.header-links button {
 
-        #addressInput {
-            flex: 1;
+    border: 0;
 
-            min-width: 0;
+    background: transparent;
 
-            height: 44px;
+    color: #202124;
 
-            padding: 0 12px;
+    cursor: pointer;
 
-            border: 0;
-            outline: 0;
+    font-size: 14px;
+}
 
-            background: transparent;
+.header-links button:hover {
 
-            color: var(--text);
-        }
+    text-decoration: underline;
+}
 
-        #addressInput::placeholder {
-            color: #64748b;
-        }
 
-        .go-btn {
-            height: 44px;
+/* =========================
+   MAIN
+========================= */
 
-            padding: 0 20px;
+main {
 
-            border: 0;
+    width: 100%;
 
-            background: var(--blue);
-            color: white;
+    max-width: 800px;
 
-            cursor: pointer;
+    margin: 0 auto;
 
-            font-weight: 600;
+    padding: 150px 20px 80px;
 
-            transition:
-                background 0.15s;
-        }
+    text-align: center;
+}
 
-        .go-btn:hover {
-            background: var(--blue-hover);
-        }
 
-        /* ==============================
-           MAIN
-        ============================== */
+/* =========================
+   LOGO
+========================= */
 
-        main {
-            flex: 1;
+.logo {
 
-            width: 100%;
-            max-width: 1180px;
+    margin-bottom: 34px;
 
-            margin: 0 auto;
+    font-size: 64px;
 
-            padding: 50px 24px 70px;
-        }
+    font-weight: 500;
 
-        .hero {
-            max-width: 800px;
-            margin: 0 auto 40px;
+    letter-spacing: -4px;
+}
 
-            text-align: center;
-        }
+.logo .blue {
+    color: #4285f4;
+}
 
-        .hero h1 {
-            margin: 0 0 12px;
+.logo .red {
+    color: #ea4335;
+}
 
-            font-size: clamp(32px, 5vw, 54px);
+.logo .yellow {
+    color: #fbbc05;
+}
 
-            line-height: 1.05;
+.logo .green {
+    color: #34a853;
+}
 
-            letter-spacing: -2px;
-        }
 
-        .hero h1 span {
-            color: var(--blue);
-        }
+/* =========================
+   SEARCH
+========================= */
 
-        .hero p {
-            margin: 0;
+.search-box {
 
-            color: var(--muted);
+    width: 100%;
 
-            font-size: 16px;
-        }
+    height: 50px;
 
-        /* ==============================
-           QUICK ACTIONS
-        ============================== */
+    display: flex;
+    align-items: center;
 
-        .quick-actions {
-            display: grid;
+    border: 1px solid #dfe1e5;
 
-            grid-template-columns:
-                repeat(4, minmax(0, 1fr));
+    border-radius: 25px;
 
-            gap: 12px;
+    padding: 0 16px;
 
-            margin-bottom: 30px;
-        }
+    box-shadow:
+        0 1px 6px rgba(32,33,36,.15);
 
-        .quick-card {
-            padding: 18px;
+    transition:
+        box-shadow .15s,
+        border-color .15s;
+}
 
-            background: var(--panel);
+.search-box:hover,
+.search-box:focus-within {
 
-            border: 1px solid var(--border);
+    box-shadow:
+        0 1px 8px rgba(32,33,36,.25);
+}
 
-            border-radius: 12px;
+.search-icon {
 
-            cursor: pointer;
+    color: #9aa0a6;
 
-            transition:
-                transform 0.15s,
-                background 0.15s,
-                border-color 0.15s;
-        }
+    font-size: 20px;
 
-        .quick-card:hover {
-            transform: translateY(-2px);
+    margin-right: 12px;
+}
 
-            background: var(--panel-2);
+#search {
 
-            border-color: #3b4758;
-        }
+    flex: 1;
 
-        .quick-icon {
-            font-size: 23px;
-            margin-bottom: 12px;
-        }
+    height: 100%;
 
-        .quick-card h3 {
-            margin: 0 0 5px;
+    border: 0;
 
-            font-size: 15px;
-        }
+    outline: 0;
 
-        .quick-card p {
-            margin: 0;
+    font-size: 16px;
 
-            color: var(--muted);
+    color: #202124;
 
-            font-size: 13px;
-        }
+    background: transparent;
+}
 
-        /* ==============================
-           PANELS
-        ============================== */
+.search-button {
 
-        .grid {
-            display: grid;
+    height: 36px;
 
-            grid-template-columns:
-                minmax(0, 1fr)
-                minmax(0, 1fr);
+    padding: 0 17px;
 
-            gap: 18px;
-        }
+    border: 0;
 
-        .panel {
-            background: rgba(17, 23, 32, 0.9);
+    border-radius: 4px;
 
-            border: 1px solid var(--border);
+    background: #f8f9fa;
 
-            border-radius: 14px;
+    color: #202124;
 
-            overflow: hidden;
-        }
+    cursor: pointer;
 
-        .panel-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+    font-size: 14px;
+}
 
-            padding: 16px 18px;
+.search-button:hover {
 
-            border-bottom: 1px solid var(--border);
-        }
+    border: 1px solid #dadce0;
 
-        .panel-title {
-            display: flex;
-            align-items: center;
-            gap: 9px;
+    box-shadow:
+        0 1px 1px rgba(0,0,0,.1);
+}
 
-            font-weight: 650;
-        }
 
-        .panel-content {
-            padding: 8px;
-        }
+/* =========================
+   BUTTONS
+========================= */
 
-        .empty {
-            padding: 28px 16px;
+.buttons {
 
-            text-align: center;
+    margin-top: 28px;
 
-            color: var(--muted);
+    display: flex;
 
-            font-size: 14px;
-        }
+    justify-content: center;
 
-        /* ==============================
-           HISTORY / BOOKMARKS
-        ============================== */
+    gap: 12px;
+}
 
-        .item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+.buttons button {
 
-            padding: 11px 10px;
+    padding: 10px 18px;
 
-            border-radius: 9px;
+    border: 1px solid #f8f9fa;
 
-            cursor: pointer;
+    border-radius: 4px;
 
-            transition:
-                background 0.15s;
-        }
+    background: #f8f9fa;
 
-        .item:hover {
-            background: var(--panel-2);
-        }
+    color: #202124;
 
-        .item-icon {
-            width: 32px;
-            height: 32px;
+    cursor: pointer;
 
-            flex-shrink: 0;
+    font-size: 14px;
+}
 
-            display: grid;
-            place-items: center;
+.buttons button:hover {
 
-            border-radius: 8px;
+    border-color: #dadce0;
 
-            background: #1c2634;
+    box-shadow:
+        0 1px 1px rgba(0,0,0,.1);
+}
 
-            color: var(--muted);
-        }
 
-        .item-main {
-            min-width: 0;
-            flex: 1;
-        }
+/* =========================
+   INFO
+========================= */
 
-        .item-title {
-            overflow: hidden;
+.info {
 
-            white-space: nowrap;
-            text-overflow: ellipsis;
+    margin-top: 55px;
 
-            font-size: 14px;
-        }
+    color: #70757a;
 
-        .item-sub {
-            margin-top: 3px;
+    font-size: 13px;
+}
 
-            overflow: hidden;
+.info span {
 
-            white-space: nowrap;
-            text-overflow: ellipsis;
+    color: #4285f4;
+}
 
-            color: var(--muted);
 
-            font-size: 12px;
-        }
+/* =========================
+   SEARCH RESULTS
+========================= */
 
-        .status {
-            font-size: 12px;
-            font-weight: 600;
-        }
+#results {
 
-        .status.ok {
-            color: var(--green);
-        }
+    display: none;
 
-        .status.error {
-            color: var(--red);
-        }
+    text-align: left;
 
-        /* ==============================
-           STATUS BAR
-        ============================== */
+    margin-top: 55px;
+}
 
-        .statusbar {
-            position: fixed;
+.result {
 
-            left: 0;
-            right: 0;
-            bottom: 0;
+    margin-bottom: 30px;
+}
 
-            height: 32px;
+.result-url {
 
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+    color: #188038;
 
-            padding: 0 14px;
+    font-size: 13px;
 
-            background: #080b10;
+    margin-bottom: 4px;
 
-            border-top: 1px solid var(--border);
+    word-break: break-all;
+}
 
-            color: var(--muted);
+.result-title {
 
-            font-size: 12px;
+    color: #1a0dab;
 
-            z-index: 30;
-        }
+    font-size: 20px;
 
-        .status-left {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-        }
+    margin-bottom: 5px;
 
-        .status-dot {
-            width: 7px;
-            height: 7px;
+    cursor: pointer;
+}
 
-            border-radius: 50%;
+.result-title:hover {
 
-            background: var(--green);
+    text-decoration: underline;
+}
 
-            box-shadow:
-                0 0 8px rgba(54, 211, 153, 0.8);
-        }
+.result-description {
 
-        /* ==============================
-           TOAST
-        ============================== */
+    color: #4d5156;
 
-        .toast {
-            position: fixed;
+    font-size: 14px;
 
-            right: 20px;
-            bottom: 52px;
+    line-height: 1.5;
 
-            max-width: 340px;
+    max-width: 650px;
+}
 
-            padding: 13px 16px;
+.search-meta {
 
-            border-radius: 9px;
+    color: #70757a;
 
-            background: #1b2430;
+    font-size: 13px;
 
-            border: 1px solid #344154;
+    margin-bottom: 25px;
+}
 
-            color: var(--text);
 
-            box-shadow:
-                0 12px 30px rgba(0, 0, 0, 0.35);
+/* =========================
+   FOOTER
+========================= */
 
-            transform: translateY(20px);
-            opacity: 0;
+footer {
 
-            pointer-events: none;
+    position: fixed;
 
-            transition:
-                opacity 0.2s,
-                transform 0.2s;
+    left: 0;
+    right: 0;
+    bottom: 0;
 
-            z-index: 50;
-        }
+    min-height: 44px;
 
-        .toast.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-        /* ==============================
-           RESPONSIVE
-        ============================== */
+    border-top: 1px solid #dadce0;
 
-        @media (max-width: 800px) {
+    background: #f2f2f2;
 
-            .topbar {
-                height: auto;
+    color: #70757a;
 
-                flex-wrap: wrap;
+    font-size: 13px;
+}
 
-                padding: 12px;
-            }
 
-            .logo {
-                min-width: auto;
-            }
+/* =========================
+   MOBILE
+========================= */
 
-            .toolbar {
-                order: 3;
-                width: 100%;
-            }
+@media (max-width: 600px) {
 
-            .address-wrap {
-                order: 2;
-                width: 100%;
-                flex-basis: 100%;
-            }
+    header {
+        padding: 0 15px;
+    }
 
-            .quick-actions {
-                grid-template-columns:
-                    repeat(2, minmax(0, 1fr));
-            }
+    main {
+        padding-top: 100px;
+    }
 
-            .grid {
-                grid-template-columns: 1fr;
-            }
+    .logo {
+        font-size: 48px;
+    }
 
-            main {
-                padding-top: 35px;
-            }
-        }
+    .search-box {
+        height: 48px;
+    }
 
-        @media (max-width: 480px) {
+    .search-button {
+        display: none;
+    }
 
-            .quick-actions {
-                grid-template-columns: 1fr;
-            }
+    .buttons {
+        flex-direction: column;
+        align-items: center;
+    }
 
-            .hero h1 {
-                font-size: 36px;
-            }
+    .buttons button {
+        width: 180px;
+    }
+}
 
-            main {
-                padding-left: 14px;
-                padding-right: 14px;
-            }
-        }
-    </style>
+</style>
+
 </head>
 
 <body>
 
-<div class="app">
 
-    <!-- TOP BAR -->
+<header>
 
-    <header class="topbar">
+    <div class="header-links">
 
-        <div class="logo">
-            <div class="logo-icon">🌐</div>
+        <button onclick="showBookmarks()">
+            Bokmärken
+        </button>
 
-            <div class="logo-text">
-                Simple <span>Proxy</span>
-            </div>
-        </div>
+        <button onclick="showHistory()">
+            Historik
+        </button>
 
-        <div class="toolbar">
-
-            <button
-                class="tool-btn"
-                title="Tillbaka"
-                onclick="goBack()">
-                ←
-            </button>
-
-            <button
-                class="tool-btn"
-                title="Framåt"
-                onclick="goForward()">
-                →
-            </button>
-
-            <button
-                class="tool-btn"
-                title="Ladda om"
-                onclick="reloadPage()">
-                ↻
-            </button>
-
-        </div>
-
-        <div class="address-wrap">
-
-            <form
-                class="address-bar"
-                id="addressForm">
-
-                <div class="address-icon">
-                    🔒
-                </div>
-
-                <input
-                    id="addressInput"
-                    type="text"
-                    autocomplete="off"
-                    spellcheck="false"
-                    placeholder="Skriv en URL eller sök efter något..."
-                >
-
-                <button
-                    class="go-btn"
-                    type="submit">
-                    Gå
-                </button>
-
-            </form>
-
-        </div>
-
-    </header>
-
-
-    <!-- MAIN -->
-
-    <main>
-
-        <section class="hero">
-
-            <h1>
-                Browse the <span>web</span>.
-            </h1>
-
-            <p>
-                Ange en webbadress eller skriv ett sökord för att börja.
-            </p>
-
-        </section>
-
-
-        <!-- QUICK ACTIONS -->
-
-        <section class="quick-actions">
-
-            <div
-                class="quick-card"
-                onclick="openExample()">
-
-                <div class="quick-icon">
-                    🧪
-                </div>
-
-                <h3>
-                    Testa proxyn
-                </h3>
-
-                <p>
-                    Öppna en enkel testsida.
-                </p>
-
-            </div>
-
-
-            <div
-                class="quick-card"
-                onclick="openJson()">
-
-                <div class="quick-icon">
-                    🔗
-                </div>
-
-                <h3>
-                    API-test
-                </h3>
-
-                <p>
-                    Kontrollera att externa API-anrop fungerar.
-                </p>
-
-            </div>
-
-
-            <div
-                class="quick-card"
-                onclick="focusSearch()">
-
-                <div class="quick-icon">
-                    🔎
-                </div>
-
-                <h3>
-                    Sök
-                </h3>
-
-                <p>
-                    Sök med valfria sökord.
-                </p>
-
-            </div>
-
-
-            <div
-                class="quick-card"
-                onclick="checkHealth()">
-
-                <div class="quick-icon">
-                    ⚡
-                </div>
-
-                <h3>
-                    Systemstatus
-                </h3>
-
-                <p>
-                    Kontrollera serverns status.
-                </p>
-
-            </div>
-
-        </section>
-
-
-        <!-- PANELS -->
-
-        <section class="grid">
-
-            <!-- HISTORY -->
-
-            <div class="panel">
-
-                <div class="panel-header">
-
-                    <div class="panel-title">
-                        🕘 Historik
-                    </div>
-
-                </div>
-
-                <div
-                    class="panel-content"
-                    id="history">
-
-                    <div class="empty">
-                        Ingen historik ännu.
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- BOOKMARKS -->
-
-            <div class="panel">
-
-                <div class="panel-header">
-
-                    <div class="panel-title">
-                        ⭐ Bokmärken
-                    </div>
-
-                </div>
-
-                <div
-                    class="panel-content"
-                    id="bookmarks">
-
-                    <div class="empty">
-                        Inga bokmärken ännu.
-                    </div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-    </main>
-
-
-    <!-- STATUS BAR -->
-
-    <div class="statusbar">
-
-        <div class="status-left">
-
-            <div
-                class="status-dot"
-                id="statusDot">
-            </div>
-
-            <span id="statusText">
-                Kontrollerar server...
-            </span>
-
-        </div>
-
-        <div id="version">
-            V19
-        </div>
+        <button onclick="health()">
+            Status
+        </button>
 
     </div>
 
-</div>
+</header>
 
 
-<div
-    class="toast"
-    id="toast">
-</div>
+<main>
+
+    <div class="logo">
+
+        <span class="blue">S</span><span class="red">i</span><span class="yellow">m</span><span class="blue">p</span><span class="green">l</span><span class="red">e</span>
+
+        <span style="color:#202124">
+            Proxy
+        </span>
+
+    </div>
+
+
+    <form id="searchForm">
+
+        <div class="search-box">
+
+            <div class="search-icon">
+                🔍
+            </div>
+
+            <input
+                id="search"
+                autocomplete="off"
+                placeholder="Sök eller skriv en webbadress"
+            >
+
+            <button
+                class="search-button"
+                type="submit">
+
+                Sök
+
+            </button>
+
+        </div>
+
+    </form>
+
+
+    <div class="buttons">
+
+        <button onclick="focusSearch()">
+            Sök
+        </button>
+
+        <button onclick="openExample()">
+            Testa proxyn
+        </button>
+
+    </div>
+
+
+    <div
+        class="info"
+        id="info">
+
+        Sök på webben eller öppna en URL genom proxyn.
+
+        <br><br>
+
+        <span>
+            V20
+        </span>
+
+    </div>
+
+
+    <div id="results"></div>
+
+</main>
+
+
+<footer>
+
+    Simple Proxy · V20
+
+</footer>
 
 
 <script>
 
-const addressInput =
-    document.getElementById("addressInput");
 
-const addressForm =
-    document.getElementById("addressForm");
+const searchInput =
+    document.getElementById("search");
 
-const historyContainer =
-    document.getElementById("history");
+const searchForm =
+    document.getElementById("searchForm");
 
-const bookmarksContainer =
-    document.getElementById("bookmarks");
+const results =
+    document.getElementById("results");
 
-const statusText =
-    document.getElementById("statusText");
-
-const statusDot =
-    document.getElementById("statusDot");
-
-const toast =
-    document.getElementById("toast");
+const info =
+    document.getElementById("info");
 
 
-/* ==========================================
-   NAVIGATION
-========================================== */
+/* =========================
+   INPUT
+========================= */
 
-function openUrl(url) {
-
-    if (!url) {
-        return;
-    }
-
-    window.location.href =
-        "/proxy?url=" +
-        encodeURIComponent(url);
-}
-
-
-function parseInput(value) {
+function getInputType(value) {
 
     value = value.trim();
 
@@ -917,38 +538,28 @@ function parseInput(value) {
         return null;
     }
 
-    /*
-     * If the user typed a normal URL,
-     * open it directly.
-     */
-
     if (
         value.startsWith("http://") ||
         value.startsWith("https://")
     ) {
+
         return {
             type: "url",
             value
         };
     }
 
-    /*
-     * Detect common domains.
-     */
-
     if (
         value.includes(".") &&
         !value.includes(" ")
     ) {
+
         return {
             type: "url",
-            value: "https://" + value
+            value:
+                "https://" + value
         };
     }
-
-    /*
-     * Otherwise treat it as a search.
-     */
 
     return {
         type: "search",
@@ -957,15 +568,19 @@ function parseInput(value) {
 }
 
 
-addressForm.addEventListener(
+/* =========================
+   SUBMIT
+========================= */
+
+searchForm.addEventListener(
     "submit",
-    async event => {
+    async function(event) {
 
         event.preventDefault();
 
         const input =
-            parseInput(
-                addressInput.value
+            getInputType(
+                searchInput.value
             );
 
         if (!input) {
@@ -974,279 +589,180 @@ addressForm.addEventListener(
 
         if (input.type === "url") {
 
-            openUrl(input.value);
+            window.location.href =
+                "/proxy?url=" +
+                encodeURIComponent(
+                    input.value
+                );
 
             return;
         }
 
-        /*
-         * Search terms are sent to our
-         * backend search endpoint.
-         */
-
-        try {
-
-            const response =
-                await fetch(
-                    "/api/search?q=" +
-                    encodeURIComponent(
-                        input.value
-                    )
-                );
-
-            const data =
-                await response.json();
-
-            if (!response.ok) {
-                throw new Error(
-                    data.error ||
-                    "Search failed"
-                );
-            }
-
-            /*
-             * We open the actual search URL
-             * through the proxy.
-             */
-
-            openUrl(data.url);
-
-        } catch (error) {
-
-            showToast(
-                "Sökningen kunde inte startas."
-            );
-
-            console.error(error);
-        }
+        await search(
+            input.value
+        );
     }
 );
 
 
-/* ==========================================
-   QUICK ACTIONS
-========================================== */
+/* =========================
+   SEARCH
+========================= */
 
-function openExample() {
+async function search(query) {
 
-    openUrl(
-        "https://example.com/"
-    );
-}
+    info.textContent =
+        "Söker...";
 
-
-function openJson() {
-
-    openUrl(
-        "https://jsonplaceholder.typicode.com/todos/1"
-    );
-}
-
-
-function focusSearch() {
-
-    addressInput.focus();
-}
-
-
-async function checkHealth() {
-
-    try {
-
-        const response =
-            await fetch("/health");
-
-        const data =
-            await response.json();
-
-        showToast(
-            `Servern fungerar — ${data.version}`
-        );
-
-    } catch {
-
-        showToast(
-            "Servern kunde inte kontaktas."
-        );
-    }
-}
-
-
-/* ==========================================
-   BROWSER BUTTONS
-========================================== */
-
-function goBack() {
-    history.back();
-}
-
-
-function goForward() {
-    history.forward();
-}
-
-
-function reloadPage() {
-    location.reload();
-}
-
-
-/* ==========================================
-   SESSION
-========================================== */
-
-async function loadSession() {
+    results.style.display =
+        "none";
 
     try {
 
         const response =
             await fetch(
-                "/api/session"
+                "/api/search?q=" +
+                encodeURIComponent(
+                    query
+                )
             );
-
-        if (!response.ok) {
-            return;
-        }
 
         const data =
             await response.json();
 
-        renderHistory(
-            data.history || []
-        );
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Search failed"
+            );
+        }
 
-        renderBookmarks(
-            data.bookmarks || []
+        renderResults(
+            data.results,
+            query
         );
 
     } catch (error) {
 
-        console.error(
-            "Session error:",
-            error
+        console.error(error);
+
+        info.textContent =
+            "Kunde inte genomföra sökningen.";
+
+    }
+}
+
+
+/* =========================
+   RESULTS
+========================= */
+
+function renderResults(
+    items,
+    query
+) {
+
+    info.textContent =
+        `${items.length} resultat för "${query}"`;
+
+    results.style.display =
+        "block";
+
+    if (!items.length) {
+
+        results.innerHTML = `
+            <div class="search-meta">
+                Inga resultat hittades.
+            </div>
+        `;
+
+        return;
+    }
+
+    results.innerHTML =
+        items.map(item => {
+
+            const safeTitle =
+                escapeHtml(
+                    item.title
+                );
+
+            const safeUrl =
+                escapeHtml(
+                    item.url
+                );
+
+            const safeDescription =
+                escapeHtml(
+                    item.description ||
+                    ""
+                );
+
+            return `
+                <div class="result">
+
+                    <div class="result-url">
+                        ${safeUrl}
+                    </div>
+
+                    <div
+                        class="result-title"
+                        onclick="openResult(${JSON.stringify(item.url)})">
+
+                        ${safeTitle}
+
+                    </div>
+
+                    <div class="result-description">
+
+                        ${safeDescription}
+
+                    </div>
+
+                </div>
+            `;
+
+        }).join("");
+}
+
+
+function openResult(url) {
+
+    window.location.href =
+        "/proxy?url=" +
+        encodeURIComponent(url);
+}
+
+
+/* =========================
+   EXAMPLE
+========================= */
+
+function openExample() {
+
+    window.location.href =
+        "/proxy?url=" +
+        encodeURIComponent(
+            "https://example.com/"
         );
-    }
 }
 
 
-/* ==========================================
-   HISTORY
-========================================== */
+/* =========================
+   SEARCH FOCUS
+========================= */
 
-function renderHistory(items) {
+function focusSearch() {
 
-    if (!items.length) {
-
-        historyContainer.innerHTML = `
-            <div class="empty">
-                Ingen historik ännu.
-            </div>
-        `;
-
-        return;
-    }
-
-    historyContainer.innerHTML =
-        items
-            .slice(0, 10)
-            .map(item => {
-
-                const statusClass =
-                    item.status >= 200 &&
-                    item.status < 400
-                        ? "ok"
-                        : "error";
-
-                return `
-                    <div
-                        class="item"
-                        onclick="openUrl(${JSON.stringify(item.url)})">
-
-                        <div class="item-icon">
-                            🌐
-                        </div>
-
-                        <div class="item-main">
-
-                            <div class="item-title">
-                                ${escapeHtml(item.url)}
-                            </div>
-
-                            <div class="item-sub">
-                                ${escapeHtml(item.time)}
-                            </div>
-
-                        </div>
-
-                        <div
-                            class="status ${statusClass}">
-                            ${item.status}
-                        </div>
-
-                    </div>
-                `;
-
-            })
-            .join("");
+    searchInput.focus();
 }
 
 
-/* ==========================================
-   BOOKMARKS
-========================================== */
+/* =========================
+   STATUS
+========================= */
 
-function renderBookmarks(items) {
-
-    if (!items.length) {
-
-        bookmarksContainer.innerHTML = `
-            <div class="empty">
-                Inga bokmärken ännu.
-            </div>
-        `;
-
-        return;
-    }
-
-    bookmarksContainer.innerHTML =
-        items
-            .slice(0, 10)
-            .map(item => {
-
-                return `
-                    <div
-                        class="item"
-                        onclick="openUrl(${JSON.stringify(item.url)})">
-
-                        <div class="item-icon">
-                            ⭐
-                        </div>
-
-                        <div class="item-main">
-
-                            <div class="item-title">
-                                ${escapeHtml(item.title)}
-                            </div>
-
-                            <div class="item-sub">
-                                ${escapeHtml(item.url)}
-                            </div>
-
-                        </div>
-
-                    </div>
-                `;
-
-            })
-            .join("");
-}
-
-
-/* ==========================================
-   SERVER STATUS
-========================================== */
-
-async function updateStatus() {
+async function health() {
 
     try {
 
@@ -1258,91 +774,139 @@ async function updateStatus() {
                 }
             );
 
-        if (!response.ok) {
-            throw new Error();
-        }
-
         const data =
             await response.json();
 
-        statusText.textContent =
-            `Online · ${data.version}`;
-
-        statusDot.style.background =
-            "#36d399";
-
-        document.getElementById(
-            "version"
-        ).textContent =
-            data.version;
+        alert(
+            `Server online\nVersion: ${data.version}\nUptime: ${data.uptime}s`
+        );
 
     } catch {
 
-        statusText.textContent =
-            "Server offline";
-
-        statusDot.style.background =
-            "#ff6b6b";
+        alert(
+            "Servern kunde inte kontaktas."
+        );
     }
 }
 
 
-/* ==========================================
-   TOAST
-========================================== */
+/* =========================
+   SESSION
+========================= */
 
-let toastTimer;
+async function showHistory() {
 
-function showToast(message) {
+    try {
 
-    toast.textContent =
-        message;
-
-    toast.classList.add(
-        "show"
-    );
-
-    clearTimeout(
-        toastTimer
-    );
-
-    toastTimer =
-        setTimeout(() => {
-
-            toast.classList.remove(
-                "show"
+        const response =
+            await fetch(
+                "/api/session"
             );
 
-        }, 3000);
+        const data =
+            await response.json();
+
+        const history =
+            data.history || [];
+
+        if (!history.length) {
+
+            alert(
+                "Ingen historik ännu."
+            );
+
+            return;
+        }
+
+        alert(
+            history
+                .slice(0, 10)
+                .map(
+                    item =>
+                        `${item.status} · ${item.url}`
+                )
+                .join("\n\n")
+        );
+
+    } catch {
+
+        alert(
+            "Kunde inte hämta historiken."
+        );
+    }
 }
 
 
-/* ==========================================
-   SECURITY
-========================================== */
+async function showBookmarks() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/session"
+            );
+
+        const data =
+            await response.json();
+
+        const bookmarks =
+            data.bookmarks || [];
+
+        if (!bookmarks.length) {
+
+            alert(
+                "Inga bokmärken ännu."
+            );
+
+            return;
+        }
+
+        alert(
+            bookmarks
+                .map(
+                    item =>
+                        `${item.title}\n${item.url}`
+                )
+                .join("\n\n")
+        );
+
+    } catch {
+
+        alert(
+            "Kunde inte hämta bokmärken."
+        );
+    }
+}
+
+
+/* =========================
+   ESCAPE
+========================= */
 
 function escapeHtml(value) {
 
     return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
 }
-
-
-/* ==========================================
-   START
-========================================== */
-
-loadSession();
-updateStatus();
-
-setInterval(
-    updateStatus,
-    30000
-);
 
 </script>
 
