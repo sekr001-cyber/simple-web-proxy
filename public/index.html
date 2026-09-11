@@ -1,12 +1,35 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Simple Proxy</title>
 
 <style>
+
+:root {
+    --bg: #ffffff;
+    --text: #202124;
+    --muted: #70757a;
+    --border: #dadce0;
+    --button: #f8f9fa;
+    --button-hover: #f1f3f4;
+    --footer: #f2f2f2;
+    --blue: #4285f4;
+}
+
+body.dark {
+    --bg: #202124;
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --border: #3c4043;
+    --button: #303134;
+    --button-hover: #3c4043;
+    --footer: #171717;
+    --blue: #8ab4f8;
+}
 
 * {
     box-sizing: border-box;
@@ -19,119 +42,184 @@ body {
 }
 
 body {
-    background: #fff;
-    color: #202124;
-    font-family: Arial, Helvetica, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    transition:
+        background .2s ease,
+        color .2s ease;
 }
 
-/* HEADER */
+
+/* =========================================
+   HEADER
+========================================= */
 
 header {
+
     height: 64px;
 
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
 
-    padding: 0 28px;
+    padding: 0 24px;
 
-    border-bottom: 1px solid #f1f3f4;
+    border-bottom:
+        1px solid var(--border);
 }
 
-.nav {
+.header-left,
+.header-right {
+
     display: flex;
     align-items: center;
-    gap: 22px;
+
+    gap: 8px;
 }
 
-.nav button {
-    border: 0;
-    background: transparent;
+.mini-logo {
 
-    color: #202124;
+    color: var(--text);
 
-    font-size: 14px;
+    font-size: 18px;
+
+    font-weight: 600;
+
+    text-decoration: none;
 
     cursor: pointer;
 }
 
-.nav button:hover {
-    text-decoration: underline;
+.nav-button {
+
+    height: 36px;
+
+    padding: 0 12px;
+
+    border: 0;
+
+    border-radius: 5px;
+
+    background: transparent;
+
+    color: var(--text);
+
+    cursor: pointer;
+
+    font-size: 13px;
 }
 
-/* MAIN */
+.nav-button:hover {
+
+    background:
+        var(--button-hover);
+}
+
+
+/* =========================================
+   MAIN
+========================================= */
 
 main {
-    width: min(760px, calc(100% - 32px));
 
-    margin: 0 auto;
+    width:
+        min(
+            760px,
+            calc(100% - 32px)
+        );
 
-    padding-top: 145px;
+    margin:
+        0 auto;
 
-    text-align: center;
+    padding-top:
+        125px;
+
+    text-align:
+        center;
 }
 
-/* LOGO */
+
+/* =========================================
+   LOGO
+========================================= */
 
 .logo {
-    margin-bottom: 32px;
 
-    font-size: 62px;
-    font-weight: 500;
+    margin-bottom:
+        32px;
 
-    letter-spacing: -4px;
+    font-size:
+        62px;
+
+    font-weight:
+        500;
+
+    letter-spacing:
+        -4px;
 }
 
-.logo .s1 {
+.logo .blue {
     color: #4285f4;
 }
 
-.logo .s2 {
+.logo .red {
     color: #ea4335;
 }
 
-.logo .s3 {
+.logo .yellow {
     color: #fbbc05;
 }
 
-.logo .s4 {
-    color: #4285f4;
-}
-
-.logo .s5 {
+.logo .green {
     color: #34a853;
 }
 
-.logo .s6 {
-    color: #ea4335;
-}
-
 .logo .proxy {
-    color: #202124;
-    letter-spacing: -2px;
+
+    color:
+        var(--text);
+
+    letter-spacing:
+        -2px;
 }
 
-/* SEARCH */
 
-.search-wrapper {
-    position: relative;
-}
+/* =========================================
+   SEARCH
+========================================= */
 
 .search-box {
-    height: 52px;
 
-    display: flex;
-    align-items: center;
+    height:
+        52px;
 
-    padding: 0 8px 0 18px;
+    display:
+        flex;
 
-    border: 1px solid #dfe1e5;
-    border-radius: 28px;
+    align-items:
+        center;
 
-    background: #fff;
+    padding:
+        0 8px 0 18px;
+
+    border:
+        1px solid var(--border);
+
+    border-radius:
+        28px;
+
+    background:
+        var(--bg);
 
     box-shadow:
-        0 1px 6px rgba(32, 33, 36, .15);
+        0 1px 6px
+        rgba(32,33,36,.15);
 
     transition:
         box-shadow .15s ease;
@@ -139,219 +227,517 @@ main {
 
 .search-box:hover,
 .search-box:focus-within {
+
     box-shadow:
-        0 1px 10px rgba(32, 33, 36, .22);
+        0 1px 10px
+        rgba(32,33,36,.22);
 }
 
 .search-icon {
-    color: #9aa0a6;
 
-    font-size: 19px;
+    margin-right:
+        12px;
 
-    margin-right: 12px;
+    color:
+        var(--muted);
+
+    font-size:
+        19px;
 }
 
 #search {
-    flex: 1;
 
-    min-width: 0;
+    flex:
+        1;
 
-    height: 100%;
+    min-width:
+        0;
 
-    border: 0;
-    outline: 0;
+    height:
+        100%;
 
-    background: transparent;
+    border:
+        0;
 
-    color: #202124;
+    outline:
+        0;
 
-    font-size: 16px;
+    background:
+        transparent;
+
+    color:
+        var(--text);
+
+    font-size:
+        16px;
 }
 
 #search::placeholder {
-    color: #80868b;
+
+    color:
+        var(--muted);
 }
 
 .clear-button {
-    display: none;
 
-    width: 36px;
-    height: 36px;
+    width:
+        36px;
 
-    border: 0;
+    height:
+        36px;
 
-    background: transparent;
+    border:
+        0;
 
-    color: #5f6368;
+    background:
+        transparent;
 
-    font-size: 20px;
+    color:
+        var(--muted);
 
-    cursor: pointer;
+    font-size:
+        20px;
+
+    cursor:
+        pointer;
+
+    display:
+        none;
 }
 
 .clear-button.visible {
-    display: block;
+
+    display:
+        block;
 }
 
-/* BUTTONS */
+
+/* =========================================
+   MAIN BUTTONS
+========================================= */
 
 .buttons {
-    display: flex;
 
-    justify-content: center;
+    margin-top:
+        28px;
 
-    gap: 12px;
+    display:
+        flex;
 
-    margin-top: 28px;
+    justify-content:
+        center;
+
+    gap:
+        10px;
+
+    flex-wrap:
+        wrap;
 }
 
-.buttons button {
-    min-width: 130px;
+.action-button {
 
-    padding: 10px 18px;
+    padding:
+        10px 17px;
 
-    border: 1px solid #f8f9fa;
-    border-radius: 4px;
+    border:
+        1px solid var(--button);
 
-    background: #f8f9fa;
+    border-radius:
+        5px;
 
-    color: #202124;
+    background:
+        var(--button);
 
-    font-size: 14px;
+    color:
+        var(--text);
 
-    cursor: pointer;
+    cursor:
+        pointer;
+
+    font-size:
+        14px;
 }
 
-.buttons button:hover {
-    border-color: #dadce0;
+.action-button:hover {
 
-    box-shadow:
-        0 1px 1px rgba(0, 0, 0, .1);
+    border-color:
+        var(--border);
+
+    background:
+        var(--button-hover);
 }
 
-/* SEARCH ENGINE CHOICE */
 
-.engines {
-    margin-top: 30px;
+/* =========================================
+   TOOLS
+========================================= */
 
-    color: #70757a;
+.tools {
 
-    font-size: 13px;
+    margin-top:
+        28px;
+
+    display:
+        flex;
+
+    justify-content:
+        center;
+
+    flex-wrap:
+        wrap;
+
+    gap:
+        6px;
 }
 
-.engine-buttons {
-    display: flex;
+.tool {
 
-    justify-content: center;
+    padding:
+        7px 10px;
 
-    gap: 8px;
+    border:
+        0;
 
-    margin-top: 10px;
+    border-radius:
+        5px;
+
+    background:
+        transparent;
+
+    color:
+        var(--blue);
+
+    cursor:
+        pointer;
+
+    font-size:
+        13px;
 }
 
-.engine-buttons button {
-    border: 0;
+.tool:hover {
 
-    background: transparent;
-
-    color: #4285f4;
-
-    cursor: pointer;
-
-    font-size: 13px;
-
-    padding: 5px 8px;
+    text-decoration:
+        underline;
 }
 
-.engine-buttons button:hover {
-    text-decoration: underline;
-}
 
-/* STATUS */
+/* =========================================
+   STATUS
+========================================= */
 
 #status {
-    min-height: 20px;
 
-    margin-top: 30px;
+    min-height:
+        22px;
 
-    color: #70757a;
+    margin-top:
+        30px;
 
-    font-size: 13px;
+    color:
+        var(--muted);
+
+    font-size:
+        13px;
 }
 
-/* FOOTER */
+
+/* =========================================
+   QUICK PANEL
+========================================= */
+
+.panel {
+
+    display:
+        none;
+
+    margin-top:
+        35px;
+
+    padding:
+        18px;
+
+    border:
+        1px solid var(--border);
+
+    border-radius:
+        10px;
+
+    background:
+        var(--bg);
+
+    text-align:
+        left;
+}
+
+.panel.visible {
+
+    display:
+        block;
+}
+
+.panel-title {
+
+    margin-bottom:
+        14px;
+
+    font-size:
+        15px;
+
+    font-weight:
+        600;
+}
+
+.panel-empty {
+
+    color:
+        var(--muted);
+
+    font-size:
+        13px;
+}
+
+.panel-item {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    gap:
+        10px;
+
+    padding:
+        10px 0;
+
+    border-bottom:
+        1px solid var(--border);
+}
+
+.panel-item:last-child {
+
+    border-bottom:
+        0;
+}
+
+.panel-item-main {
+
+    min-width:
+        0;
+}
+
+.panel-item-title {
+
+    color:
+        var(--blue);
+
+    cursor:
+        pointer;
+
+    font-size:
+        14px;
+
+    overflow:
+        hidden;
+
+    text-overflow:
+        ellipsis;
+
+    white-space:
+        nowrap;
+}
+
+.panel-item-url {
+
+    margin-top:
+        3px;
+
+    color:
+        var(--muted);
+
+    font-size:
+        11px;
+
+    overflow:
+        hidden;
+
+    text-overflow:
+        ellipsis;
+
+    white-space:
+        nowrap;
+}
+
+.small-delete {
+
+    flex:
+        0 0 auto;
+
+    border:
+        0;
+
+    background:
+        transparent;
+
+    color:
+        var(--muted);
+
+    cursor:
+        pointer;
+}
+
+
+/* =========================================
+   FOOTER
+========================================= */
 
 footer {
-    position: fixed;
 
-    left: 0;
-    right: 0;
-    bottom: 0;
+    position:
+        fixed;
 
-    min-height: 44px;
+    left:
+        0;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    right:
+        0;
 
-    background: #f2f2f2;
+    bottom:
+        0;
 
-    border-top: 1px solid #dadce0;
+    min-height:
+        44px;
 
-    color: #70757a;
+    display:
+        flex;
 
-    font-size: 13px;
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    border-top:
+        1px solid var(--border);
+
+    background:
+        var(--footer);
+
+    color:
+        var(--muted);
+
+    font-size:
+        13px;
 }
 
-/* MOBILE */
+
+/* =========================================
+   MOBILE
+========================================= */
 
 @media (max-width: 600px) {
 
     header {
-        padding: 0 16px;
+
+        padding:
+            0 12px;
+    }
+
+    .header-right {
+
+        gap:
+            0;
+    }
+
+    .nav-button {
+
+        padding:
+            0 7px;
     }
 
     main {
-        padding-top: 95px;
+
+        padding-top:
+            90px;
     }
 
     .logo {
-        font-size: 48px;
+
+        font-size:
+            48px;
     }
 
     .buttons {
-        flex-direction: column;
-        align-items: center;
+
+        flex-direction:
+            column;
+
+        align-items:
+            center;
     }
 
-    .buttons button {
-        width: 200px;
+    .action-button {
+
+        width:
+            210px;
     }
 
-    .engine-buttons {
-        flex-wrap: wrap;
+    .panel {
+
+        margin-bottom:
+            60px;
     }
 }
 
 </style>
+
 </head>
 
 <body>
 
+
 <header>
 
-    <div class="nav">
+    <div class="header-left">
 
-        <button onclick="showHistory()">
+        <a
+            class="mini-logo"
+            href="/">
+
+            Simple Proxy
+
+        </a>
+
+    </div>
+
+
+    <div class="header-right">
+
+        <button
+            class="nav-button"
+            onclick="togglePanel('history')">
+
             Historik
+
         </button>
 
-        <button onclick="showBookmarks()">
+        <button
+            class="nav-button"
+            onclick="togglePanel('bookmarks')">
+
             Bokmärken
+
         </button>
 
-        <button onclick="checkStatus()">
-            Status
+        <button
+            class="nav-button"
+            onclick="toggleDarkMode()">
+
+            🌙
+
         </button>
 
     </div>
@@ -361,9 +747,10 @@ footer {
 
 <main>
 
+
     <div class="logo">
 
-        <span class="s1">S</span><span class="s2">i</span><span class="s3">m</span><span class="s4">p</span><span class="s5">l</span><span class="s6">e</span>
+        <span class="blue">S</span><span class="red">i</span><span class="yellow">m</span><span class="blue">p</span><span class="green">l</span><span class="red">e</span>
 
         <span class="proxy">
             Proxy
@@ -374,31 +761,28 @@ footer {
 
     <form id="searchForm">
 
-        <div class="search-wrapper">
+        <div class="search-box">
 
-            <div class="search-box">
+            <span class="search-icon">
+                🔍
+            </span>
 
-                <span class="search-icon">
-                    🔍
-                </span>
+            <input
+                id="search"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Sök eller skriv en webbadress"
+            >
 
-                <input
-                    id="search"
-                    type="text"
-                    autocomplete="off"
-                    spellcheck="false"
-                    placeholder="Sök eller skriv en webbadress"
-                >
+            <button
+                id="clearButton"
+                class="clear-button"
+                type="button">
 
-                <button
-                    id="clearButton"
-                    class="clear-button"
-                    type="button"
-                    aria-label="Rensa">
-                    ×
-                </button>
+                ×
 
-            </div>
+            </button>
 
         </div>
 
@@ -407,81 +791,155 @@ footer {
 
     <div class="buttons">
 
-        <button onclick="searchDuckDuckGo()">
-            DuckDuckGo
+        <button
+            class="action-button"
+            onclick="searchDuckDuckGo()">
+
+            🔎 DuckDuckGo
+
         </button>
 
-        <button onclick="openInputAsUrl()">
-            Öppna URL
+        <button
+            class="action-button"
+            onclick="openInputAsUrl()">
+
+            🌐 Öppna URL
+
         </button>
 
-        <button onclick="openExample()">
-            Testa proxyn
+        <button
+            class="action-button"
+            onclick="openExample()">
+
+            🧪 Testa
+
         </button>
 
     </div>
 
 
-    <div class="engines">
+    <div class="tools">
 
-        Sök med
+        <button
+            class="tool"
+            onclick="goHome()">
 
-        <div class="engine-buttons">
+            🏠 Hem
 
-            <button onclick="searchDuckDuckGo()">
-                DuckDuckGo
-            </button>
+        </button>
 
-            <button onclick="searchBing()">
-                Bing
-            </button>
+        <button
+            class="tool"
+            onclick="copyCurrentUrl()">
 
-        </div>
+            📋 Kopiera adress
+
+        </button>
+
+        <button
+            class="tool"
+            onclick="checkStatus()">
+
+            ⚡ Serverstatus
+
+        </button>
 
     </div>
 
 
     <div id="status">
+
         Sök på webben eller öppna en webbadress genom proxyn.
+
     </div>
+
+
+    <div
+        id="historyPanel"
+        class="panel">
+
+        <div class="panel-title">
+            🕘 Historik
+        </div>
+
+        <div id="historyContent"></div>
+
+    </div>
+
+
+    <div
+        id="bookmarksPanel"
+        class="panel">
+
+        <div class="panel-title">
+            ⭐ Bokmärken
+        </div>
+
+        <div id="bookmarksContent"></div>
+
+    </div>
+
 
 </main>
 
 
 <footer>
-    Simple Proxy · V21
+
+    Simple Proxy · V22
+
 </footer>
 
 
 <script>
 
+/* =========================================
+   ELEMENTS
+========================================= */
+
 const input =
-    document.getElementById("search");
+    document.getElementById(
+        "search"
+    );
 
 const form =
-    document.getElementById("searchForm");
+    document.getElementById(
+        "searchForm"
+    );
 
 const clearButton =
-    document.getElementById("clearButton");
+    document.getElementById(
+        "clearButton"
+    );
 
 const status =
-    document.getElementById("status");
+    document.getElementById(
+        "status"
+    );
+
+const historyPanel =
+    document.getElementById(
+        "historyPanel"
+    );
+
+const bookmarksPanel =
+    document.getElementById(
+        "bookmarksPanel"
+    );
+
+const historyContent =
+    document.getElementById(
+        "historyContent"
+    );
+
+const bookmarksContent =
+    document.getElementById(
+        "bookmarksContent"
+    );
 
 
-/* =========================
-   INPUT
-========================= */
-
-function getValue() {
-
-    return input.value.trim();
-
-}
-
-
-/* =========================
-   URL DETECTION
-========================= */
+/* =========================================
+   URL
+========================================= */
 
 function isUrl(value) {
 
@@ -490,96 +948,58 @@ function isUrl(value) {
     }
 
     if (
-        value.startsWith("http://") ||
-        value.startsWith("https://")
+        value.startsWith(
+            "http://"
+        ) ||
+        value.startsWith(
+            "https://"
+        )
     ) {
         return true;
     }
 
-    if (
+    return (
         value.includes(".") &&
         !value.includes(" ")
-    ) {
-        return true;
-    }
-
-    return false;
-
+    );
 }
 
 
 function normalizeUrl(value) {
 
     if (
-        value.startsWith("http://") ||
-        value.startsWith("https://")
+        value.startsWith(
+            "http://"
+        ) ||
+        value.startsWith(
+            "https://"
+        )
     ) {
         return value;
     }
 
     return "https://" + value;
-
 }
 
-
-/* =========================
-   PROXY URL
-========================= */
 
 function openThroughProxy(url) {
 
     window.location.href =
         "/proxy?url=" +
         encodeURIComponent(url);
-
 }
 
 
-/* =========================
-   FORM
-========================= */
-
-form.addEventListener(
-    "submit",
-    function(event) {
-
-        event.preventDefault();
-
-        const value =
-            getValue();
-
-        if (!value) {
-
-            input.focus();
-
-            return;
-        }
-
-        if (isUrl(value)) {
-
-            openThroughProxy(
-                normalizeUrl(value)
-            );
-
-            return;
-        }
-
-        searchDuckDuckGo();
-
-    }
-);
-
-
-/* =========================
-   DUCKDUCKGO
-========================= */
+/* =========================================
+   SEARCH
+========================================= */
 
 function searchDuckDuckGo() {
 
-    const query =
-        getValue();
+    const value =
+        input.value.trim();
 
-    if (!query) {
+    if (!value) {
 
         input.focus();
 
@@ -588,52 +1008,23 @@ function searchDuckDuckGo() {
 
     const url =
         "https://duckduckgo.com/?q=" +
-        encodeURIComponent(query);
+        encodeURIComponent(value);
 
     status.textContent =
         "Öppnar DuckDuckGo genom proxyn...";
 
     openThroughProxy(url);
-
 }
 
 
-/* =========================
-   BING
-========================= */
-
-function searchBing() {
-
-    const query =
-        getValue();
-
-    if (!query) {
-
-        input.focus();
-
-        return;
-    }
-
-    const url =
-        "https://www.bing.com/search?q=" +
-        encodeURIComponent(query);
-
-    status.textContent =
-        "Öppnar Bing genom proxyn...";
-
-    openThroughProxy(url);
-
-}
-
-
-/* =========================
+/* =========================================
    OPEN URL
-========================= */
+========================================= */
 
 function openInputAsUrl() {
 
     const value =
-        getValue();
+        input.value.trim();
 
     if (!value) {
 
@@ -645,7 +1036,7 @@ function openInputAsUrl() {
     if (!isUrl(value)) {
 
         status.textContent =
-            "Det ser inte ut som en webbadress.";
+            "Skriv en webbadress, exempelvis example.com";
 
         return;
     }
@@ -653,35 +1044,53 @@ function openInputAsUrl() {
     openThroughProxy(
         normalizeUrl(value)
     );
-
 }
 
 
-/* =========================
-   EXAMPLE
-========================= */
+/* =========================================
+   FORM
+========================================= */
 
-function openExample() {
+form.addEventListener(
+    "submit",
+    function(event) {
 
-    openThroughProxy(
-        "https://example.com/"
-    );
+        event.preventDefault();
 
-}
+        const value =
+            input.value.trim();
+
+        if (!value) {
+            return;
+        }
+
+        if (isUrl(value)) {
+
+            openThroughProxy(
+                normalizeUrl(value)
+            );
+
+        } else {
+
+            searchDuckDuckGo();
+
+        }
+    }
+);
 
 
-/* =========================
+/* =========================================
    CLEAR
-========================= */
+========================================= */
 
 input.addEventListener(
     "input",
     function() {
 
-        clearButton.classList.toggle(
-            "visible",
-            Boolean(input.value)
-        );
+        clearButton.style.display =
+            input.value
+                ? "block"
+                : "none";
 
     }
 );
@@ -692,9 +1101,8 @@ clearButton.addEventListener(
 
         input.value = "";
 
-        clearButton.classList.remove(
-            "visible"
-        );
+        clearButton.style.display =
+            "none";
 
         input.focus();
 
@@ -702,9 +1110,99 @@ clearButton.addEventListener(
 );
 
 
-/* =========================
+/* =========================================
+   HOME
+========================================= */
+
+function goHome() {
+
+    window.location.href = "/";
+
+}
+
+
+/* =========================================
+   EXAMPLE
+========================================= */
+
+function openExample() {
+
+    openThroughProxy(
+        "https://example.com/"
+    );
+
+}
+
+
+/* =========================================
+   COPY URL
+========================================= */
+
+async function copyCurrentUrl() {
+
+    try {
+
+        await navigator.clipboard.writeText(
+            window.location.href
+        );
+
+        status.textContent =
+            "Adressen kopierades.";
+
+    } catch {
+
+        status.textContent =
+            "Kunde inte kopiera adressen.";
+
+    }
+
+}
+
+
+/* =========================================
+   DARK MODE
+========================================= */
+
+function toggleDarkMode() {
+
+    document.body.classList.toggle(
+        "dark"
+    );
+
+    const enabled =
+        document.body.classList.contains(
+            "dark"
+        );
+
+    localStorage.setItem(
+        "simpleProxyDark",
+        enabled
+            ? "1"
+            : "0"
+    );
+
+}
+
+
+/* =========================================
+   LOAD DARK MODE
+========================================= */
+
+if (
+    localStorage.getItem(
+        "simpleProxyDark"
+    ) === "1"
+) {
+
+    document.body.classList.add(
+        "dark"
+    );
+}
+
+
+/* =========================================
    STATUS
-========================= */
+========================================= */
 
 async function checkStatus() {
 
@@ -717,7 +1215,8 @@ async function checkStatus() {
             await fetch(
                 "/health",
                 {
-                    cache: "no-store"
+                    cache:
+                        "no-store"
                 }
             );
 
@@ -730,18 +1229,71 @@ async function checkStatus() {
     } catch {
 
         status.textContent =
-            "Kunde inte kontakta servern.";
+            "Servern kunde inte kontaktas.";
 
     }
-
 }
 
 
-/* =========================
-   HISTORY
-========================= */
+/* =========================================
+   PANELS
+========================================= */
 
-async function showHistory() {
+function togglePanel(type) {
+
+    if (type === "history") {
+
+        bookmarksPanel.classList.remove(
+            "visible"
+        );
+
+        historyPanel.classList.toggle(
+            "visible"
+        );
+
+        if (
+            historyPanel.classList.contains(
+                "visible"
+            )
+        ) {
+            loadHistory();
+        }
+
+        return;
+    }
+
+    if (type === "bookmarks") {
+
+        historyPanel.classList.remove(
+            "visible"
+        );
+
+        bookmarksPanel.classList.toggle(
+            "visible"
+        );
+
+        if (
+            bookmarksPanel.classList.contains(
+                "visible"
+            )
+        ) {
+            loadBookmarks();
+        }
+
+    }
+}
+
+
+/* =========================================
+   HISTORY
+========================================= */
+
+async function loadHistory() {
+
+    historyContent.innerHTML =
+        `<div class="panel-empty">
+            Laddar...
+        </div>`;
 
     try {
 
@@ -758,39 +1310,81 @@ async function showHistory() {
 
         if (!history.length) {
 
-            alert(
-                "Ingen historik ännu."
-            );
+            historyContent.innerHTML =
+                `<div class="panel-empty">
+                    Ingen historik ännu.
+                </div>`;
 
             return;
         }
 
-        alert(
+        historyContent.innerHTML =
             history
-                .slice(0, 10)
-                .map(
-                    item =>
-                        `${item.status} · ${item.url}`
-                )
-                .join("\n\n")
-        );
+                .slice(0, 20)
+                .map(item => {
+
+                    const safeUrl =
+                        escapeHtml(
+                            item.url
+                        );
+
+                    return `
+                        <div class="panel-item">
+
+                            <div class="panel-item-main">
+
+                                <div
+                                    class="panel-item-title"
+                                    onclick="openHistory(${JSON.stringify(item.url)})">
+
+                                    ${safeUrl}
+
+                                </div>
+
+                                <div class="panel-item-url">
+
+                                    ${item.status}
+                                    ·
+                                    ${new Date(item.time).toLocaleString()}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    `;
+
+                })
+                .join("");
 
     } catch {
 
-        alert(
-            "Kunde inte hämta historiken."
-        );
+        historyContent.innerHTML =
+            `<div class="panel-empty">
+                Kunde inte hämta historiken.
+            </div>`;
 
     }
+}
+
+
+function openHistory(url) {
+
+    openThroughProxy(url);
 
 }
 
 
-/* =========================
+/* =========================================
    BOOKMARKS
-========================= */
+========================================= */
 
-async function showBookmarks() {
+async function loadBookmarks() {
+
+    bookmarksContent.innerHTML =
+        `<div class="panel-empty">
+            Laddar...
+        </div>`;
 
     try {
 
@@ -807,36 +1401,111 @@ async function showBookmarks() {
 
         if (!bookmarks.length) {
 
-            alert(
-                "Inga bokmärken ännu."
-            );
+            bookmarksContent.innerHTML =
+                `<div class="panel-empty">
+                    Inga bokmärken ännu.
+                </div>`;
 
             return;
         }
 
-        alert(
+        bookmarksContent.innerHTML =
             bookmarks
-                .map(
-                    item =>
-                        `${item.title}\n${item.url}`
-                )
-                .join("\n\n")
-        );
+                .map(item => {
+
+                    const safeTitle =
+                        escapeHtml(
+                            item.title
+                        );
+
+                    const safeUrl =
+                        escapeHtml(
+                            item.url
+                        );
+
+                    return `
+                        <div class="panel-item">
+
+                            <div
+                                class="panel-item-main"
+                                onclick="openBookmark(${JSON.stringify(item.url)})">
+
+                                <div class="panel-item-title">
+
+                                    ${safeTitle}
+
+                                </div>
+
+                                <div class="panel-item-url">
+
+                                    ${safeUrl}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    `;
+
+                })
+                .join("");
 
     } catch {
 
-        alert(
-            "Kunde inte hämta bokmärken."
-        );
+        bookmarksContent.innerHTML =
+            `<div class="panel-empty">
+                Kunde inte hämta bokmärken.
+            </div>`;
 
     }
+}
+
+
+function openBookmark(url) {
+
+    openThroughProxy(url);
 
 }
 
 
-/* =========================
+/* =========================================
+   ESCAPE
+========================================= */
+
+function escapeHtml(value) {
+
+    return String(value)
+
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+}
+
+
+/* =========================================
    START
-========================= */
+========================================= */
 
 input.focus();
 
