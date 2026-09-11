@@ -1,1489 +1,1350 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Proxy V16</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<style>
-* {
-    box-sizing: border-box;
-}
+    <title>Simple Web Proxy</title>
 
-html,
-body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    font-family: Arial, Helvetica, sans-serif;
-    background: #111827;
-    color: white;
-}
+    <style>
+        * {
+            box-sizing: border-box;
+        }
 
-body {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
+        :root {
+            --bg: #0b0f14;
+            --panel: #111720;
+            --panel-2: #171e29;
+            --border: #273140;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --blue: #4f8cff;
+            --blue-hover: #6b9cff;
+            --green: #36d399;
+            --red: #ff6b6b;
+        }
 
-/* TOP BAR */
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(
+                    circle at top,
+                    #172235 0%,
+                    var(--bg) 42%
+                );
+            color: var(--text);
+            font-family:
+                Inter,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
 
-.topbar {
-    background: #1f2937;
-    border-bottom: 1px solid #374151;
-    padding: 10px;
-}
+        button,
+        input {
+            font: inherit;
+        }
 
-.toolbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
+        .app {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
 
-.logo {
-    font-weight: bold;
-    font-size: 18px;
-    min-width: 100px;
-    color: #60a5fa;
-}
+        /* ==============================
+           TOP BAR
+        ============================== */
 
-button {
-    border: none;
-    background: #374151;
-    color: white;
-    border-radius: 8px;
-    padding: 9px 12px;
-    cursor: pointer;
-    font-size: 14px;
-}
+        .topbar {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 0 22px;
 
-button:hover {
-    background: #4b5563;
-}
+            background: rgba(11, 15, 20, 0.88);
+            border-bottom: 1px solid var(--border);
 
-button:active {
-    transform: scale(0.97);
-}
+            backdrop-filter: blur(14px);
 
-.address-form {
-    flex: 1;
-    display: flex;
-    gap: 8px;
-}
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
 
-#address {
-    flex: 1;
-    min-width: 0;
-    border: 1px solid #4b5563;
-    background: #111827;
-    color: white;
-    border-radius: 8px;
-    padding: 10px 13px;
-    font-size: 15px;
-    outline: none;
-}
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
 
-#address:focus {
-    border-color: #60a5fa;
-}
+            min-width: 180px;
 
-.go {
-    background: #2563eb;
-}
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
 
-.go:hover {
-    background: #1d4ed8;
-}
+        .logo-icon {
+            width: 34px;
+            height: 34px;
 
-/* TABS */
+            display: grid;
+            place-items: center;
 
-.tabs {
-    display: flex;
-    gap: 5px;
-    margin-top: 9px;
-    overflow-x: auto;
-}
+            border-radius: 9px;
 
-.tab {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #111827;
-    border: 1px solid #374151;
-    border-radius: 7px;
-    padding: 7px 10px;
-    white-space: nowrap;
-    cursor: pointer;
-}
+            background: var(--blue);
 
-.tab.active {
-    background: #374151;
-    border-color: #60a5fa;
-}
+            font-size: 18px;
+        }
 
-.tab-close {
-    color: #9ca3af;
-    cursor: pointer;
-}
+        .logo-text span {
+            color: var(--blue);
+        }
 
-.tab-close:hover {
-    color: white;
-}
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
 
-.new-tab {
-    background: #2563eb;
-}
+        .tool-btn {
+            width: 36px;
+            height: 36px;
 
-/* HOME */
+            border: 1px solid var(--border);
+            border-radius: 8px;
 
-#home {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 30px;
-    overflow: auto;
-}
+            background: var(--panel);
+            color: var(--text);
 
-.home-card {
-    width: min(700px, 100%);
-    text-align: center;
-}
+            cursor: pointer;
 
-.home-card h1 {
-    font-size: 42px;
-    margin-bottom: 8px;
-}
+            transition:
+                background 0.15s,
+                border-color 0.15s;
+        }
 
-.home-card p {
-    color: #9ca3af;
-    margin-bottom: 30px;
-}
+        .tool-btn:hover {
+            background: var(--panel-2);
+            border-color: #3b4758;
+        }
 
-.big-search {
-    display: flex;
-    gap: 10px;
-}
+        /* ==============================
+           ADDRESS BAR
+        ============================== */
 
-#homeSearch {
-    flex: 1;
-    border: 1px solid #4b5563;
-    background: #1f2937;
-    color: white;
-    border-radius: 10px;
-    padding: 15px;
-    font-size: 17px;
-    outline: none;
-}
+        .address-wrap {
+            flex: 1;
 
-.search-button {
-    background: #2563eb;
-    padding: 0 22px;
-    font-size: 16px;
-}
+            display: flex;
+            align-items: center;
 
-.features {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-top: 30px;
-}
+            max-width: 900px;
+            margin: 0 auto;
+        }
 
-.feature {
-    background: #1f2937;
-    border: 1px solid #374151;
-    border-radius: 10px;
-    padding: 18px;
-}
+        .address-bar {
+            width: 100%;
 
-.feature strong {
-    display: block;
-    margin-bottom: 6px;
-}
+            display: flex;
+            align-items: center;
 
-.feature span {
-    color: #9ca3af;
-    font-size: 13px;
-}
+            background: var(--panel);
+            border: 1px solid var(--border);
 
-/* BROWSER */
+            border-radius: 11px;
 
-#browser {
-    display: none;
-    flex: 1;
-    position: relative;
-    background: white;
-}
+            overflow: hidden;
 
-#browserFrame {
-    width: 100%;
-    height: 100%;
-    border: none;
-    background: white;
-}
+            transition:
+                border-color 0.15s,
+                box-shadow 0.15s;
+        }
 
-/* STATUS */
+        .address-bar:focus-within {
+            border-color: var(--blue);
 
-.statusbar {
-    height: 28px;
-    background: #111827;
-    border-top: 1px solid #374151;
-    display: flex;
-    align-items: center;
-    padding: 0 10px;
-    color: #9ca3af;
-    font-size: 12px;
-}
+            box-shadow:
+                0 0 0 3px rgba(79, 140, 255, 0.12);
+        }
 
-/* PANELS */
+        .address-icon {
+            padding-left: 14px;
+            color: var(--muted);
+        }
 
-.panel {
-    display: none;
-    position: fixed;
-    top: 105px;
-    right: 15px;
-    width: 320px;
-    max-height: 60vh;
-    overflow-y: auto;
-    background: #1f2937;
-    border: 1px solid #4b5563;
-    border-radius: 10px;
-    padding: 15px;
-    z-index: 100;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-}
+        #addressInput {
+            flex: 1;
 
-.panel h3 {
-    margin-top: 0;
-}
+            min-width: 0;
 
-.panel-item {
-    border-bottom: 1px solid #374151;
-    padding: 9px 0;
-    cursor: pointer;
-    overflow-wrap: anywhere;
-}
+            height: 44px;
 
-.panel-item:hover {
-    color: #60a5fa;
-}
+            padding: 0 12px;
 
-/* MOBILE */
+            border: 0;
+            outline: 0;
 
-@media (max-width: 700px) {
+            background: transparent;
 
-    .logo {
-        display: none;
-    }
+            color: var(--text);
+        }
 
-    .toolbar {
-        flex-wrap: wrap;
-    }
+        #addressInput::placeholder {
+            color: #64748b;
+        }
 
-    .address-form {
-        order: 2;
-        flex-basis: 100%;
-    }
+        .go-btn {
+            height: 44px;
 
-    .features {
-        grid-template-columns: 1fr;
-    }
+            padding: 0 20px;
 
-    .home-card h1 {
-        font-size: 32px;
-    }
+            border: 0;
 
-    .big-search {
-        flex-direction: column;
-    }
+            background: var(--blue);
+            color: white;
 
-    .search-button {
-        padding: 13px;
-    }
+            cursor: pointer;
 
-    .panel {
-        left: 10px;
-        right: 10px;
-        width: auto;
-    }
-}
-</style>
+            font-weight: 600;
+
+            transition:
+                background 0.15s;
+        }
+
+        .go-btn:hover {
+            background: var(--blue-hover);
+        }
+
+        /* ==============================
+           MAIN
+        ============================== */
+
+        main {
+            flex: 1;
+
+            width: 100%;
+            max-width: 1180px;
+
+            margin: 0 auto;
+
+            padding: 50px 24px 70px;
+        }
+
+        .hero {
+            max-width: 800px;
+            margin: 0 auto 40px;
+
+            text-align: center;
+        }
+
+        .hero h1 {
+            margin: 0 0 12px;
+
+            font-size: clamp(32px, 5vw, 54px);
+
+            line-height: 1.05;
+
+            letter-spacing: -2px;
+        }
+
+        .hero h1 span {
+            color: var(--blue);
+        }
+
+        .hero p {
+            margin: 0;
+
+            color: var(--muted);
+
+            font-size: 16px;
+        }
+
+        /* ==============================
+           QUICK ACTIONS
+        ============================== */
+
+        .quick-actions {
+            display: grid;
+
+            grid-template-columns:
+                repeat(4, minmax(0, 1fr));
+
+            gap: 12px;
+
+            margin-bottom: 30px;
+        }
+
+        .quick-card {
+            padding: 18px;
+
+            background: var(--panel);
+
+            border: 1px solid var(--border);
+
+            border-radius: 12px;
+
+            cursor: pointer;
+
+            transition:
+                transform 0.15s,
+                background 0.15s,
+                border-color 0.15s;
+        }
+
+        .quick-card:hover {
+            transform: translateY(-2px);
+
+            background: var(--panel-2);
+
+            border-color: #3b4758;
+        }
+
+        .quick-icon {
+            font-size: 23px;
+            margin-bottom: 12px;
+        }
+
+        .quick-card h3 {
+            margin: 0 0 5px;
+
+            font-size: 15px;
+        }
+
+        .quick-card p {
+            margin: 0;
+
+            color: var(--muted);
+
+            font-size: 13px;
+        }
+
+        /* ==============================
+           PANELS
+        ============================== */
+
+        .grid {
+            display: grid;
+
+            grid-template-columns:
+                minmax(0, 1fr)
+                minmax(0, 1fr);
+
+            gap: 18px;
+        }
+
+        .panel {
+            background: rgba(17, 23, 32, 0.9);
+
+            border: 1px solid var(--border);
+
+            border-radius: 14px;
+
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 16px 18px;
+
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+
+            font-weight: 650;
+        }
+
+        .panel-content {
+            padding: 8px;
+        }
+
+        .empty {
+            padding: 28px 16px;
+
+            text-align: center;
+
+            color: var(--muted);
+
+            font-size: 14px;
+        }
+
+        /* ==============================
+           HISTORY / BOOKMARKS
+        ============================== */
+
+        .item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+
+            padding: 11px 10px;
+
+            border-radius: 9px;
+
+            cursor: pointer;
+
+            transition:
+                background 0.15s;
+        }
+
+        .item:hover {
+            background: var(--panel-2);
+        }
+
+        .item-icon {
+            width: 32px;
+            height: 32px;
+
+            flex-shrink: 0;
+
+            display: grid;
+            place-items: center;
+
+            border-radius: 8px;
+
+            background: #1c2634;
+
+            color: var(--muted);
+        }
+
+        .item-main {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .item-title {
+            overflow: hidden;
+
+            white-space: nowrap;
+            text-overflow: ellipsis;
+
+            font-size: 14px;
+        }
+
+        .item-sub {
+            margin-top: 3px;
+
+            overflow: hidden;
+
+            white-space: nowrap;
+            text-overflow: ellipsis;
+
+            color: var(--muted);
+
+            font-size: 12px;
+        }
+
+        .status {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status.ok {
+            color: var(--green);
+        }
+
+        .status.error {
+            color: var(--red);
+        }
+
+        /* ==============================
+           STATUS BAR
+        ============================== */
+
+        .statusbar {
+            position: fixed;
+
+            left: 0;
+            right: 0;
+            bottom: 0;
+
+            height: 32px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 0 14px;
+
+            background: #080b10;
+
+            border-top: 1px solid var(--border);
+
+            color: var(--muted);
+
+            font-size: 12px;
+
+            z-index: 30;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+
+            border-radius: 50%;
+
+            background: var(--green);
+
+            box-shadow:
+                0 0 8px rgba(54, 211, 153, 0.8);
+        }
+
+        /* ==============================
+           TOAST
+        ============================== */
+
+        .toast {
+            position: fixed;
+
+            right: 20px;
+            bottom: 52px;
+
+            max-width: 340px;
+
+            padding: 13px 16px;
+
+            border-radius: 9px;
+
+            background: #1b2430;
+
+            border: 1px solid #344154;
+
+            color: var(--text);
+
+            box-shadow:
+                0 12px 30px rgba(0, 0, 0, 0.35);
+
+            transform: translateY(20px);
+            opacity: 0;
+
+            pointer-events: none;
+
+            transition:
+                opacity 0.2s,
+                transform 0.2s;
+
+            z-index: 50;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ==============================
+           RESPONSIVE
+        ============================== */
+
+        @media (max-width: 800px) {
+
+            .topbar {
+                height: auto;
+
+                flex-wrap: wrap;
+
+                padding: 12px;
+            }
+
+            .logo {
+                min-width: auto;
+            }
+
+            .toolbar {
+                order: 3;
+                width: 100%;
+            }
+
+            .address-wrap {
+                order: 2;
+                width: 100%;
+                flex-basis: 100%;
+            }
+
+            .quick-actions {
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            main {
+                padding-top: 35px;
+            }
+        }
+
+        @media (max-width: 480px) {
+
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+
+            .hero h1 {
+                font-size: 36px;
+            }
+
+            main {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
-<!-- TOP BAR -->
+<div class="app">
 
-<div class="topbar">
+    <!-- TOP BAR -->
 
-    <div class="toolbar">
+    <header class="topbar">
 
         <div class="logo">
-            Proxy V16
+            <div class="logo-icon">🌐</div>
+
+            <div class="logo-text">
+                Simple <span>Proxy</span>
+            </div>
         </div>
 
-        <button onclick="goBack()" title="Tillbaka">
-            ←
-        </button>
-
-        <button onclick="goForward()" title="Framåt">
-            →
-        </button>
-
-        <button onclick="reloadPage()" title="Ladda om">
-            ↻
-        </button>
-
-        <button onclick="goHome()" title="Hem">
-            🏠
-        </button>
-
-        <form
-            class="address-form"
-            onsubmit="navigateFromAddress(event)"
-        >
-
-            <input
-                id="address"
-                autocomplete="off"
-                placeholder="Skriv URL eller sök..."
-            >
+        <div class="toolbar">
 
             <button
-                class="go"
-                type="submit"
-            >
-                Gå
+                class="tool-btn"
+                title="Tillbaka"
+                onclick="goBack()">
+                ←
             </button>
-
-        </form>
-
-        <button
-            onclick="saveBookmark()"
-            title="Spara bokmärke"
-        >
-            ⭐
-        </button>
-
-        <button
-            onclick="toggleBookmarks()"
-            title="Bokmärken"
-        >
-            🔖
-        </button>
-
-        <button
-            onclick="toggleHistory()"
-            title="Historik"
-        >
-            🕘
-        </button>
-
-    </div>
-
-    <div id="tabs" class="tabs"></div>
-
-</div>
-
-
-<!-- HOME -->
-
-<main id="home">
-
-    <div class="home-card">
-
-        <h1>
-            🌐 Proxy V16
-        </h1>
-
-        <p>
-            Skriv en webbadress eller sök efter något.
-        </p>
-
-        <form
-            class="big-search"
-            onsubmit="navigateFromHome(event)"
-        >
-
-            <input
-                id="homeSearch"
-                autocomplete="off"
-                placeholder="t.ex. example.com eller minecraft"
-            >
 
             <button
-                class="search-button"
-                type="submit"
-            >
-                Sök
+                class="tool-btn"
+                title="Framåt"
+                onclick="goForward()">
+                →
             </button>
 
-        </form>
-
-        <div class="features">
-
-            <div class="feature">
-
-                <strong>
-                    🌐 Webbsidor
-                </strong>
-
-                <span>
-                    Öppna webbsidor genom proxyn.
-                </span>
-
-            </div>
-
-            <div class="feature">
-
-                <strong>
-                    🔎 Sök
-                </strong>
-
-                <span>
-                    Skriv sökord direkt i fältet.
-                </span>
-
-            </div>
-
-            <div class="feature">
-
-                <strong>
-                    ⭐ Bokmärken
-                </strong>
-
-                <span>
-                    Spara dina favoritadresser.
-                </span>
-
-            </div>
+            <button
+                class="tool-btn"
+                title="Ladda om"
+                onclick="reloadPage()">
+                ↻
+            </button>
 
         </div>
 
-    </div>
+        <div class="address-wrap">
 
-</main>
+            <form
+                class="address-bar"
+                id="addressForm">
+
+                <div class="address-icon">
+                    🔒
+                </div>
+
+                <input
+                    id="addressInput"
+                    type="text"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="Skriv en URL eller sök efter något..."
+                >
+
+                <button
+                    class="go-btn"
+                    type="submit">
+                    Gå
+                </button>
+
+            </form>
+
+        </div>
+
+    </header>
 
 
-<!-- BROWSER -->
+    <!-- MAIN -->
 
-<main id="browser">
+    <main>
 
-    <iframe
-        id="browserFrame"
-        title="Proxy Browser"
-    ></iframe>
+        <section class="hero">
 
-</main>
+            <h1>
+                Browse the <span>web</span>.
+            </h1>
+
+            <p>
+                Ange en webbadress eller skriv ett sökord för att börja.
+            </p>
+
+        </section>
 
 
-<!-- BOOKMARKS -->
+        <!-- QUICK ACTIONS -->
 
-<div
-    id="bookmarksPanel"
-    class="panel"
->
+        <section class="quick-actions">
 
-    <h3>
-        🔖 Bokmärken
-    </h3>
+            <div
+                class="quick-card"
+                onclick="openExample()">
 
-    <div id="bookmarksList">
-        Inga bokmärken ännu.
+                <div class="quick-icon">
+                    🧪
+                </div>
+
+                <h3>
+                    Testa proxyn
+                </h3>
+
+                <p>
+                    Öppna en enkel testsida.
+                </p>
+
+            </div>
+
+
+            <div
+                class="quick-card"
+                onclick="openJson()">
+
+                <div class="quick-icon">
+                    🔗
+                </div>
+
+                <h3>
+                    API-test
+                </h3>
+
+                <p>
+                    Kontrollera att externa API-anrop fungerar.
+                </p>
+
+            </div>
+
+
+            <div
+                class="quick-card"
+                onclick="focusSearch()">
+
+                <div class="quick-icon">
+                    🔎
+                </div>
+
+                <h3>
+                    Sök
+                </h3>
+
+                <p>
+                    Sök med valfria sökord.
+                </p>
+
+            </div>
+
+
+            <div
+                class="quick-card"
+                onclick="checkHealth()">
+
+                <div class="quick-icon">
+                    ⚡
+                </div>
+
+                <h3>
+                    Systemstatus
+                </h3>
+
+                <p>
+                    Kontrollera serverns status.
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- PANELS -->
+
+        <section class="grid">
+
+            <!-- HISTORY -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div class="panel-title">
+                        🕘 Historik
+                    </div>
+
+                </div>
+
+                <div
+                    class="panel-content"
+                    id="history">
+
+                    <div class="empty">
+                        Ingen historik ännu.
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- BOOKMARKS -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div class="panel-title">
+                        ⭐ Bokmärken
+                    </div>
+
+                </div>
+
+                <div
+                    class="panel-content"
+                    id="bookmarks">
+
+                    <div class="empty">
+                        Inga bokmärken ännu.
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- STATUS BAR -->
+
+    <div class="statusbar">
+
+        <div class="status-left">
+
+            <div
+                class="status-dot"
+                id="statusDot">
+            </div>
+
+            <span id="statusText">
+                Kontrollerar server...
+            </span>
+
+        </div>
+
+        <div id="version">
+            V19
+        </div>
+
     </div>
 
 </div>
 
 
-<!-- HISTORY -->
-
 <div
-    id="historyPanel"
-    class="panel"
->
-
-    <h3>
-        🕘 Historik
-    </h3>
-
-    <div id="historyList">
-        Ingen historik ännu.
-    </div>
-
-</div>
-
-
-<!-- STATUS -->
-
-<div class="statusbar">
-
-    <span id="status">
-        Klar
-    </span>
-
+    class="toast"
+    id="toast">
 </div>
 
 
 <script>
 
-/* =====================================================
-   STATE
-===================================================== */
+const addressInput =
+    document.getElementById("addressInput");
 
-let tabs = [];
-let activeTab = 0;
+const addressForm =
+    document.getElementById("addressForm");
 
+const historyContainer =
+    document.getElementById("history");
 
-/* =====================================================
-   CREATE TAB
-===================================================== */
+const bookmarksContainer =
+    document.getElementById("bookmarks");
 
-function createTab() {
+const statusText =
+    document.getElementById("statusText");
 
-    const tab = {
+const statusDot =
+    document.getElementById("statusDot");
 
-        title: "Ny flik",
-
-        url: "",
-
-        history: [],
-
-        historyIndex: -1
-
-    };
-
-    tabs.push(tab);
-
-    activeTab = tabs.length - 1;
-
-    renderTabs();
-
-    showHome();
-
-    updateAddress();
-
-    updateStatus("Ny flik");
-}
+const toast =
+    document.getElementById("toast");
 
 
-/* =====================================================
-   RENDER TABS
-===================================================== */
+/* ==========================================
+   NAVIGATION
+========================================== */
 
-function renderTabs() {
+function openUrl(url) {
 
-    const container =
-        document.getElementById("tabs");
-
-    container.innerHTML = "";
-
-    tabs.forEach((tab, index) => {
-
-        const element =
-            document.createElement("div");
-
-        element.className =
-            "tab" +
-            (
-                index === activeTab
-                    ? " active"
-                    : ""
-            );
-
-        const title =
-            document.createElement("span");
-
-        title.textContent =
-            tab.title;
-
-        element.appendChild(title);
-
-        const close =
-            document.createElement("span");
-
-        close.className =
-            "tab-close";
-
-        close.textContent =
-            "×";
-
-        close.onclick =
-            function(event) {
-
-                event.stopPropagation();
-
-                closeTab(index);
-            };
-
-        element.appendChild(close);
-
-        element.onclick =
-            function() {
-
-                switchTab(index);
-            };
-
-        container.appendChild(element);
-
-    });
-
-
-    const add =
-        document.createElement("button");
-
-    add.className =
-        "new-tab";
-
-    add.textContent =
-        "+";
-
-    add.onclick =
-        createTab;
-
-    container.appendChild(add);
-}
-
-
-/* =====================================================
-   SWITCH TAB
-===================================================== */
-
-function switchTab(index) {
-
-    if (
-        index < 0 ||
-        index >= tabs.length
-    ) {
+    if (!url) {
         return;
     }
 
-    activeTab = index;
-
-    renderTabs();
-
-    const tab =
-        tabs[activeTab];
-
-    if (tab.url) {
-
-        loadProxyUrl(
-            tab.url,
-            false
-        );
-
-    } else {
-
-        showHome();
-    }
-
-    updateAddress();
+    window.location.href =
+        "/proxy?url=" +
+        encodeURIComponent(url);
 }
 
 
-/* =====================================================
-   CLOSE TAB
-===================================================== */
+function parseInput(value) {
 
-function closeTab(index) {
-
-    if (tabs.length === 1) {
-
-        tabs[0] = {
-
-            title: "Ny flik",
-
-            url: "",
-
-            history: [],
-
-            historyIndex: -1
-        };
-
-        activeTab = 0;
-
-        renderTabs();
-
-        showHome();
-
-        updateAddress();
-
-        return;
-    }
-
-    tabs.splice(index, 1);
-
-    if (activeTab >= tabs.length) {
-
-        activeTab =
-            tabs.length - 1;
-    }
-
-    renderTabs();
-
-    switchTab(activeTab);
-}
-
-
-/* =====================================================
-   NORMALIZE INPUT
-===================================================== */
-
-function normalizeInput(value) {
-
-    value =
-        value.trim();
+    value = value.trim();
 
     if (!value) {
-
         return null;
     }
+
+    /*
+     * If the user typed a normal URL,
+     * open it directly.
+     */
 
     if (
         value.startsWith("http://") ||
         value.startsWith("https://")
     ) {
-
-        return value;
+        return {
+            type: "url",
+            value
+        };
     }
+
+    /*
+     * Detect common domains.
+     */
 
     if (
         value.includes(".") &&
         !value.includes(" ")
     ) {
-
-        return "https://" + value;
+        return {
+            type: "url",
+            value: "https://" + value
+        };
     }
 
-    return null;
+    /*
+     * Otherwise treat it as a search.
+     */
+
+    return {
+        type: "search",
+        value
+    };
 }
 
 
-/* =====================================================
-   NAVIGATE INPUT
-===================================================== */
-
-function navigateInput(value) {
-
-    value =
-        value.trim();
-
-    if (!value) {
-
-        return;
-    }
-
-    const url =
-        normalizeInput(value);
-
-    if (url) {
-
-        loadProxyUrl(
-            url,
-            true
-        );
-
-        return;
-    }
-
-    search(value);
-}
-
-
-/* =====================================================
-   SEARCH
-===================================================== */
-
-function search(query) {
-
-    updateStatus(
-        "Söker efter: " + query
-    );
-
-    const searchUrl =
-        "/search?q=" +
-        encodeURIComponent(query);
-
-    const tab =
-        tabs[activeTab];
-
-    tab.url =
-        searchUrl;
-
-    tab.title =
-        "Sök: " + query;
-
-    const frame =
-        document.getElementById(
-            "browserFrame"
-        );
-
-    document.getElementById(
-        "home"
-    ).style.display =
-        "none";
-
-    document.getElementById(
-        "browser"
-    ).style.display =
-        "block";
-
-    frame.src =
-        searchUrl;
-
-    renderTabs();
-
-    updateAddress();
-}
-
-
-/* =====================================================
-   LOAD PROXY URL
-===================================================== */
-
-function loadProxyUrl(
-    url,
-    addHistory = true
-) {
-
-    updateStatus(
-        "Laddar " + url
-    );
-
-    const tab =
-        tabs[activeTab];
-
-    if (addHistory) {
-
-        if (
-            tab.historyIndex <
-            tab.history.length - 1
-        ) {
-
-            tab.history =
-                tab.history.slice(
-                    0,
-                    tab.historyIndex + 1
-                );
-        }
-
-        tab.history.push(url);
-
-        tab.historyIndex =
-            tab.history.length - 1;
-    }
-
-    tab.url =
-        url;
-
-    try {
-
-        const parsed =
-            new URL(url);
-
-        tab.title =
-            parsed.hostname;
-
-    } catch {
-
-        tab.title =
-            "Webbsida";
-    }
-
-    const proxy =
-        "/proxy?url=" +
-        encodeURIComponent(url);
-
-    const frame =
-        document.getElementById(
-            "browserFrame"
-        );
-
-    document.getElementById(
-        "home"
-    ).style.display =
-        "none";
-
-    document.getElementById(
-        "browser"
-    ).style.display =
-        "block";
-
-    frame.src =
-        proxy;
-
-    renderTabs();
-
-    updateAddress();
-
-    saveLocalHistory(url);
-}
-
-
-/* =====================================================
-   ADDRESS BAR
-===================================================== */
-
-function navigateFromAddress(event) {
-
-    event.preventDefault();
-
-    const value =
-        document.getElementById(
-            "address"
-        ).value;
-
-    navigateInput(value);
-}
-
-
-function navigateFromHome(event) {
-
-    event.preventDefault();
-
-    const value =
-        document.getElementById(
-            "homeSearch"
-        ).value;
-
-    navigateInput(value);
-}
-
-
-function updateAddress() {
-
-    const input =
-        document.getElementById(
-            "address"
-        );
-
-    const tab =
-        tabs[activeTab];
-
-    if (
-        !tab ||
-        !tab.url
-    ) {
-
-        input.value =
-            "";
-
-        return;
-    }
-
-    input.value =
-        tab.url;
-}
-
-
-/* =====================================================
-   BACK
-===================================================== */
-
-function goBack() {
-
-    const tab =
-        tabs[activeTab];
-
-    if (
-        tab.historyIndex <= 0
-    ) {
-
-        updateStatus(
-            "Ingen tidigare sida"
-        );
-
-        return;
-    }
-
-    tab.historyIndex--;
-
-    const url =
-        tab.history[
-            tab.historyIndex
-        ];
-
-    loadProxyUrl(
-        url,
-        false
-    );
-}
-
-
-/* =====================================================
-   FORWARD
-===================================================== */
-
-function goForward() {
-
-    const tab =
-        tabs[activeTab];
-
-    if (
-        tab.historyIndex >=
-        tab.history.length - 1
-    ) {
-
-        updateStatus(
-            "Ingen nästa sida"
-        );
-
-        return;
-    }
-
-    tab.historyIndex++;
-
-    const url =
-        tab.history[
-            tab.historyIndex
-        ];
-
-    loadProxyUrl(
-        url,
-        false
-    );
-}
-
-
-/* =====================================================
-   RELOAD
-===================================================== */
-
-function reloadPage() {
-
-    const frame =
-        document.getElementById(
-            "browserFrame"
-        );
-
-    if (
-        frame.src &&
-        frame.src !== "about:blank"
-    ) {
-
-        frame.contentWindow.location.reload();
-
-        updateStatus(
-            "Laddar om..."
-        );
-
-    } else {
-
-        updateStatus(
-            "Ingen sida att ladda om"
-        );
-    }
-}
-
-
-/* =====================================================
-   HOME
-===================================================== */
-
-function goHome() {
-
-    showHome();
-
-    updateStatus(
-        "Startsida"
-    );
-}
-
-
-function showHome() {
-
-    document.getElementById(
-        "home"
-    ).style.display =
-        "flex";
-
-    document.getElementById(
-        "browser"
-    ).style.display =
-        "none";
-}
-
-
-/* =====================================================
-   STATUS
-===================================================== */
-
-function updateStatus(message) {
-
-    document.getElementById(
-        "status"
-    ).textContent =
-        message;
-}
-
-
-/* =====================================================
-   LOCAL HISTORY
-===================================================== */
-
-function saveLocalHistory(url) {
-
-    let history =
-        JSON.parse(
-            localStorage.getItem(
-                "proxy_history"
-            ) || "[]"
-        );
-
-    history =
-        history.filter(
-            item => item !== url
-        );
-
-    history.unshift(url);
-
-    history =
-        history.slice(0, 50);
-
-    localStorage.setItem(
-        "proxy_history",
-        JSON.stringify(history)
-    );
-}
-
-
-function loadLocalHistory() {
-
-    return JSON.parse(
-        localStorage.getItem(
-            "proxy_history"
-        ) || "[]"
-    );
-}
-
-
-/* =====================================================
-   BOOKMARKS
-===================================================== */
-
-function getBookmarks() {
-
-    return JSON.parse(
-        localStorage.getItem(
-            "proxy_bookmarks"
-        ) || "[]"
-    );
-}
-
-
-function saveBookmark() {
-
-    const tab =
-        tabs[activeTab];
-
-    if (
-        !tab ||
-        !tab.url
-    ) {
-
-        updateStatus(
-            "Ingen sida att bokmärka"
-        );
-
-        return;
-    }
-
-    let bookmarks =
-        getBookmarks();
-
-    if (
-        !bookmarks.includes(
-            tab.url
-        )
-    ) {
-
-        bookmarks.unshift(
-            tab.url
-        );
-
-        bookmarks =
-            bookmarks.slice(0, 50);
-
-        localStorage.setItem(
-            "proxy_bookmarks",
-            JSON.stringify(bookmarks)
-        );
-
-        updateStatus(
-            "Bokmärke sparat ⭐"
-        );
-
-    } else {
-
-        updateStatus(
-            "Redan bokmärkt"
-        );
-    }
-}
-
-
-function toggleBookmarks() {
-
-    const panel =
-        document.getElementById(
-            "bookmarksPanel"
-        );
-
-    const history =
-        document.getElementById(
-            "historyPanel"
-        );
-
-    history.style.display =
-        "none";
-
-    if (
-        panel.style.display ===
-        "block"
-    ) {
-
-        panel.style.display =
-            "none";
-
-        return;
-    }
-
-    renderBookmarks();
-
-    panel.style.display =
-        "block";
-}
-
-
-function renderBookmarks() {
-
-    const container =
-        document.getElementById(
-            "bookmarksList"
-        );
-
-    const bookmarks =
-        getBookmarks();
-
-    container.innerHTML =
-        "";
-
-    if (
-        !bookmarks.length
-    ) {
-
-        container.textContent =
-            "Inga bokmärken ännu.";
-
-        return;
-    }
-
-    bookmarks.forEach(url => {
-
-        const item =
-            document.createElement(
-                "div"
+addressForm.addEventListener(
+    "submit",
+    async event => {
+
+        event.preventDefault();
+
+        const input =
+            parseInput(
+                addressInput.value
             );
 
-        item.className =
-            "panel-item";
+        if (!input) {
+            return;
+        }
 
-        item.textContent =
-            url;
+        if (input.type === "url") {
 
-        item.onclick =
-            function() {
+            openUrl(input.value);
 
-                loadProxyUrl(
-                    url,
-                    true
+            return;
+        }
+
+        /*
+         * Search terms are sent to our
+         * backend search endpoint.
+         */
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/search?q=" +
+                    encodeURIComponent(
+                        input.value
+                    )
                 );
 
-                document.getElementById(
-                    "bookmarksPanel"
-                ).style.display =
-                    "none";
-            };
+            const data =
+                await response.json();
 
-        container.appendChild(
-            item
-        );
-    });
-}
+            if (!response.ok) {
+                throw new Error(
+                    data.error ||
+                    "Search failed"
+                );
+            }
 
+            /*
+             * We open the actual search URL
+             * through the proxy.
+             */
 
-/* =====================================================
-   HISTORY PANEL
-===================================================== */
+            openUrl(data.url);
 
-function toggleHistory() {
+        } catch (error) {
 
-    const panel =
-        document.getElementById(
-            "historyPanel"
-        );
-
-    const bookmarks =
-        document.getElementById(
-            "bookmarksPanel"
-        );
-
-    bookmarks.style.display =
-        "none";
-
-    if (
-        panel.style.display ===
-        "block"
-    ) {
-
-        panel.style.display =
-            "none";
-
-        return;
-    }
-
-    renderHistory();
-
-    panel.style.display =
-        "block";
-}
-
-
-function renderHistory() {
-
-    const container =
-        document.getElementById(
-            "historyList"
-        );
-
-    const history =
-        loadLocalHistory();
-
-    container.innerHTML =
-        "";
-
-    if (
-        !history.length
-    ) {
-
-        container.textContent =
-            "Ingen historik ännu.";
-
-        return;
-    }
-
-    history.forEach(url => {
-
-        const item =
-            document.createElement(
-                "div"
+            showToast(
+                "Sökningen kunde inte startas."
             );
 
-        item.className =
-            "panel-item";
-
-        item.textContent =
-            url;
-
-        item.onclick =
-            function() {
-
-                loadProxyUrl(
-                    url,
-                    true
-                );
-
-                document.getElementById(
-                    "historyPanel"
-                ).style.display =
-                    "none";
-            };
-
-        container.appendChild(
-            item
-        );
-    });
-}
-
-
-/* =====================================================
-   KEYBOARD SHORTCUTS
-===================================================== */
-
-document.addEventListener(
-    "keydown",
-    event => {
-
-        if (
-            event.ctrlKey &&
-            event.key.toLowerCase() === "l"
-        ) {
-
-            event.preventDefault();
-
-            const input =
-                document.getElementById(
-                    "address"
-                );
-
-            input.focus();
-            input.select();
+            console.error(error);
         }
-
-
-        if (
-            event.ctrlKey &&
-            event.key.toLowerCase() === "t"
-        ) {
-
-            event.preventDefault();
-
-            createTab();
-        }
-
-
-        if (
-            event.ctrlKey &&
-            event.key.toLowerCase() === "w"
-        ) {
-
-            event.preventDefault();
-
-            closeTab(activeTab);
-        }
-
     }
 );
 
 
-/* =====================================================
-   FRAME LOAD
-===================================================== */
+/* ==========================================
+   QUICK ACTIONS
+========================================== */
 
-document
-    .getElementById(
-        "browserFrame"
-    )
-    .addEventListener(
-        "load",
-        () => {
+function openExample() {
 
-            updateStatus(
-                "Sidan laddad"
+    openUrl(
+        "https://example.com/"
+    );
+}
+
+
+function openJson() {
+
+    openUrl(
+        "https://jsonplaceholder.typicode.com/todos/1"
+    );
+}
+
+
+function focusSearch() {
+
+    addressInput.focus();
+}
+
+
+async function checkHealth() {
+
+    try {
+
+        const response =
+            await fetch("/health");
+
+        const data =
+            await response.json();
+
+        showToast(
+            `Servern fungerar — ${data.version}`
+        );
+
+    } catch {
+
+        showToast(
+            "Servern kunde inte kontaktas."
+        );
+    }
+}
+
+
+/* ==========================================
+   BROWSER BUTTONS
+========================================== */
+
+function goBack() {
+    history.back();
+}
+
+
+function goForward() {
+    history.forward();
+}
+
+
+function reloadPage() {
+    location.reload();
+}
+
+
+/* ==========================================
+   SESSION
+========================================== */
+
+async function loadSession() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/session"
             );
 
+        if (!response.ok) {
+            return;
         }
+
+        const data =
+            await response.json();
+
+        renderHistory(
+            data.history || []
+        );
+
+        renderBookmarks(
+            data.bookmarks || []
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Session error:",
+            error
+        );
+    }
+}
+
+
+/* ==========================================
+   HISTORY
+========================================== */
+
+function renderHistory(items) {
+
+    if (!items.length) {
+
+        historyContainer.innerHTML = `
+            <div class="empty">
+                Ingen historik ännu.
+            </div>
+        `;
+
+        return;
+    }
+
+    historyContainer.innerHTML =
+        items
+            .slice(0, 10)
+            .map(item => {
+
+                const statusClass =
+                    item.status >= 200 &&
+                    item.status < 400
+                        ? "ok"
+                        : "error";
+
+                return `
+                    <div
+                        class="item"
+                        onclick="openUrl(${JSON.stringify(item.url)})">
+
+                        <div class="item-icon">
+                            🌐
+                        </div>
+
+                        <div class="item-main">
+
+                            <div class="item-title">
+                                ${escapeHtml(item.url)}
+                            </div>
+
+                            <div class="item-sub">
+                                ${escapeHtml(item.time)}
+                            </div>
+
+                        </div>
+
+                        <div
+                            class="status ${statusClass}">
+                            ${item.status}
+                        </div>
+
+                    </div>
+                `;
+
+            })
+            .join("");
+}
+
+
+/* ==========================================
+   BOOKMARKS
+========================================== */
+
+function renderBookmarks(items) {
+
+    if (!items.length) {
+
+        bookmarksContainer.innerHTML = `
+            <div class="empty">
+                Inga bokmärken ännu.
+            </div>
+        `;
+
+        return;
+    }
+
+    bookmarksContainer.innerHTML =
+        items
+            .slice(0, 10)
+            .map(item => {
+
+                return `
+                    <div
+                        class="item"
+                        onclick="openUrl(${JSON.stringify(item.url)})">
+
+                        <div class="item-icon">
+                            ⭐
+                        </div>
+
+                        <div class="item-main">
+
+                            <div class="item-title">
+                                ${escapeHtml(item.title)}
+                            </div>
+
+                            <div class="item-sub">
+                                ${escapeHtml(item.url)}
+                            </div>
+
+                        </div>
+
+                    </div>
+                `;
+
+            })
+            .join("");
+}
+
+
+/* ==========================================
+   SERVER STATUS
+========================================== */
+
+async function updateStatus() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/health",
+                {
+                    cache: "no-store"
+                }
+            );
+
+        if (!response.ok) {
+            throw new Error();
+        }
+
+        const data =
+            await response.json();
+
+        statusText.textContent =
+            `Online · ${data.version}`;
+
+        statusDot.style.background =
+            "#36d399";
+
+        document.getElementById(
+            "version"
+        ).textContent =
+            data.version;
+
+    } catch {
+
+        statusText.textContent =
+            "Server offline";
+
+        statusDot.style.background =
+            "#ff6b6b";
+    }
+}
+
+
+/* ==========================================
+   TOAST
+========================================== */
+
+let toastTimer;
+
+function showToast(message) {
+
+    toast.textContent =
+        message;
+
+    toast.classList.add(
+        "show"
     );
 
+    clearTimeout(
+        toastTimer
+    );
 
-/* =====================================================
+    toastTimer =
+        setTimeout(() => {
+
+            toast.classList.remove(
+                "show"
+            );
+
+        }, 3000);
+}
+
+
+/* ==========================================
+   SECURITY
+========================================== */
+
+function escapeHtml(value) {
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+/* ==========================================
    START
-===================================================== */
+========================================== */
 
-createTab();
+loadSession();
+updateStatus();
+
+setInterval(
+    updateStatus,
+    30000
+);
 
 </script>
 
 </body>
 </html>
-
