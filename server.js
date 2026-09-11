@@ -21,7 +21,7 @@ app.use(express.static("public"));
 
 
 // =====================================================
-// SESSION STORAGE
+// SESSIONS
 // =====================================================
 
 const sessions = new Map();
@@ -40,11 +40,6 @@ function createSession() {
     return id;
 }
 
-
-// =====================================================
-// COOKIES / SESSION
-// =====================================================
-
 function parseCookies(header) {
     const result = {};
 
@@ -55,9 +50,7 @@ function parseCookies(header) {
     for (const part of header.split(";")) {
         const index = part.indexOf("=");
 
-        if (index === -1) {
-            continue;
-        }
+        if (index === -1) continue;
 
         const name = part.substring(0, index).trim();
         const value = part.substring(index + 1).trim();
@@ -69,7 +62,6 @@ function parseCookies(header) {
 
     return result;
 }
-
 
 function getOrCreateSession(req, res) {
     const cookies = parseCookies(req.headers.cookie);
@@ -125,7 +117,6 @@ function getTargetCookies(session, hostname) {
         .join("; ");
 }
 
-
 function storeTargetCookies(session, hostname, setCookieHeaders) {
     if (!setCookieHeaders || !setCookieHeaders.length) {
         return;
@@ -137,12 +128,9 @@ function storeTargetCookies(session, hostname, setCookieHeaders) {
 
     for (const header of setCookieHeaders) {
         const firstPart = header.split(";")[0];
-
         const index = firstPart.indexOf("=");
 
-        if (index === -1) {
-            continue;
-        }
+        if (index === -1) continue;
 
         const name = firstPart.substring(0, index).trim();
         const value = firstPart.substring(index + 1).trim();
@@ -155,7 +143,7 @@ function storeTargetCookies(session, hostname, setCookieHeaders) {
 
 
 // =====================================================
-// HISTORY
+// HISTORY / BOOKMARKS
 // =====================================================
 
 function addHistory(session, url, status) {
@@ -167,11 +155,6 @@ function addHistory(session, url, status) {
 
     session.history = session.history.slice(0, 50);
 }
-
-
-// =====================================================
-// BOOKMARKS
-// =====================================================
 
 function addBookmark(session, url, title = url) {
     const exists = session.bookmarks.some(
@@ -195,7 +178,6 @@ function addBookmark(session, url, title = url) {
 function proxyUrl(url) {
     return "/proxy?url=" + encodeURIComponent(url);
 }
-
 
 function makeAbsolute(value, baseUrl) {
     if (!value) {
@@ -256,7 +238,6 @@ function isPrivateIPv4(ip) {
     );
 }
 
-
 function isPrivateIPv6(ip) {
     const normalized = ip.toLowerCase();
 
@@ -267,7 +248,6 @@ function isPrivateIPv6(ip) {
         normalized.startsWith("fe80:")
     );
 }
-
 
 async function isSafeTarget(url) {
     const hostname = url.hostname.toLowerCase();
@@ -284,20 +264,17 @@ async function isSafeTarget(url) {
             return !isPrivateIPv4(hostname);
         }
 
-        if (net.isIPv6(hostname)) {
-            return !isPrivateIPv6(hostname);
-        }
+        return !isPrivateIPv6(hostname);
     }
 
     try {
         const addresses = await dns.lookup(
             hostname,
-            {
-                all: true
-            }
+            { all: true }
         );
 
         for (const address of addresses) {
+
             if (
                 net.isIPv4(address.address) &&
                 isPrivateIPv4(address.address)
@@ -326,6 +303,7 @@ async function isSafeTarget(url) {
 // =====================================================
 
 async function fetchTarget(targetUrl, session) {
+
     const controller = new AbortController();
 
     const timeout = setTimeout(
@@ -344,16 +322,18 @@ async function fetchTarget(targetUrl, session) {
             "sv-SE,sv;q=0.9,en-US;q=0.8,en;q=0.7"
     };
 
-    const cookies = getTargetCookies(
-        session,
-        targetUrl.hostname
-    );
+    const cookies =
+        getTargetCookies(
+            session,
+            targetUrl.hostname
+        );
 
     if (cookies) {
         headers.Cookie = cookies;
     }
 
     try {
+
         return await fetch(
             targetUrl.href,
             {
@@ -370,18 +350,20 @@ async function fetchTarget(targetUrl, session) {
 
 
 // =====================================================
-// CSS REWRITE
+// REWRITE
 // =====================================================
 
 function rewriteCss(css, baseUrl) {
+
     return css.replace(
         /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,
         (match, quote, resource) => {
 
-            const absolute = makeAbsolute(
-                resource,
-                baseUrl
-            );
+            const absolute =
+                makeAbsolute(
+                    resource,
+                    baseUrl
+                );
 
             if (!absolute) {
                 return match;
@@ -392,24 +374,19 @@ function rewriteCss(css, baseUrl) {
     );
 }
 
-
-// =====================================================
-// HTML REWRITE
-// =====================================================
-
 function rewriteHtml(html, baseUrl) {
+
     const $ = cheerio.load(html);
 
     $("base").remove();
 
-
     $("a[href]").each((_, element) => {
-        const value = $(element).attr("href");
 
-        const absolute = makeAbsolute(
-            value,
-            baseUrl
-        );
+        const absolute =
+            makeAbsolute(
+                $(element).attr("href"),
+                baseUrl
+            );
 
         if (absolute) {
             $(element).attr(
@@ -418,7 +395,6 @@ function rewriteHtml(html, baseUrl) {
             );
         }
     });
-
 
     $(
         "img[src]," +
@@ -427,12 +403,11 @@ function rewriteHtml(html, baseUrl) {
         "source[src]"
     ).each((_, element) => {
 
-        const value = $(element).attr("src");
-
-        const absolute = makeAbsolute(
-            value,
-            baseUrl
-        );
+        const absolute =
+            makeAbsolute(
+                $(element).attr("src"),
+                baseUrl
+            );
 
         if (absolute) {
             $(element).attr(
@@ -442,40 +417,40 @@ function rewriteHtml(html, baseUrl) {
         }
     });
 
-
     $("[srcset]").each((_, element) => {
-        const srcset = $(element).attr("srcset");
 
-        if (!srcset) {
-            return;
-        }
+        const srcset =
+            $(element).attr("srcset");
 
-        const rewritten = srcset
-            .split(",")
-            .map(part => {
+        if (!srcset) return;
 
-                const pieces =
-                    part.trim().split(/\s+/);
+        const rewritten =
+            srcset
+                .split(",")
+                .map(part => {
 
-                const resource =
-                    pieces.shift();
+                    const pieces =
+                        part.trim().split(/\s+/);
 
-                const absolute =
-                    makeAbsolute(
-                        resource,
-                        baseUrl
-                    );
+                    const resource =
+                        pieces.shift();
 
-                if (!absolute) {
-                    return part;
-                }
+                    const absolute =
+                        makeAbsolute(
+                            resource,
+                            baseUrl
+                        );
 
-                return [
-                    proxyUrl(absolute),
-                    ...pieces
-                ].join(" ");
-            })
-            .join(", ");
+                    if (!absolute) {
+                        return part;
+                    }
+
+                    return [
+                        proxyUrl(absolute),
+                        ...pieces
+                    ].join(" ");
+                })
+                .join(", ");
 
         $(element).attr(
             "srcset",
@@ -483,14 +458,13 @@ function rewriteHtml(html, baseUrl) {
         );
     });
 
-
     $("script[src]").each((_, element) => {
-        const value = $(element).attr("src");
 
-        const absolute = makeAbsolute(
-            value,
-            baseUrl
-        );
+        const absolute =
+            makeAbsolute(
+                $(element).attr("src"),
+                baseUrl
+            );
 
         if (absolute) {
             $(element).attr(
@@ -500,14 +474,13 @@ function rewriteHtml(html, baseUrl) {
         }
     });
 
-
     $("link[href]").each((_, element) => {
-        const value = $(element).attr("href");
 
-        const absolute = makeAbsolute(
-            value,
-            baseUrl
-        );
+        const absolute =
+            makeAbsolute(
+                $(element).attr("href"),
+                baseUrl
+            );
 
         if (absolute) {
             $(element).attr(
@@ -517,14 +490,13 @@ function rewriteHtml(html, baseUrl) {
         }
     });
 
-
     $("form[action]").each((_, element) => {
-        const value = $(element).attr("action");
 
-        const absolute = makeAbsolute(
-            value,
-            baseUrl
-        );
+        const absolute =
+            makeAbsolute(
+                $(element).attr("action"),
+                baseUrl
+            );
 
         if (absolute) {
             $(element).attr(
@@ -534,23 +506,204 @@ function rewriteHtml(html, baseUrl) {
         }
     });
 
-
     $("[style]").each((_, element) => {
-        const style = $(element).attr("style");
 
-        if (!style) {
-            return;
+        const style =
+            $(element).attr("style");
+
+        if (style) {
+            $(element).attr(
+                "style",
+                rewriteCss(
+                    style,
+                    baseUrl
+                )
+            );
         }
-
-        $(element).attr(
-            "style",
-            rewriteCss(style, baseUrl)
-        );
     });
-
 
     return $.html();
 }
+
+
+// =====================================================
+// SEARCH
+// =====================================================
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+app.get("/api/search", async (req, res) => {
+
+    const query =
+        String(req.query.q || "").trim();
+
+    if (!query) {
+        return res.status(400).json({
+            error: "Missing search query"
+        });
+    }
+
+    if (query.length > 200) {
+        return res.status(400).json({
+            error: "Search query is too long"
+        });
+    }
+
+    try {
+
+        /*
+         * DuckDuckGo's HTML endpoint is used only
+         * as a search-data source.
+         *
+         * We parse the results and return our
+         * own JSON to the frontend.
+         */
+
+        const searchUrl =
+            "https://html.duckduckgo.com/html/?q=" +
+            encodeURIComponent(query);
+
+        const controller =
+            new AbortController();
+
+        const timeout =
+            setTimeout(
+                () => controller.abort(),
+                10000
+            );
+
+        let response;
+
+        try {
+
+            response =
+                await fetch(
+                    searchUrl,
+                    {
+                        headers: {
+                            "User-Agent":
+                                "Mozilla/5.0"
+                        },
+                        signal:
+                            controller.signal
+                    }
+                );
+
+        } finally {
+            clearTimeout(timeout);
+        }
+
+        if (!response.ok) {
+            return res.status(502).json({
+                error:
+                    `Search provider returned ${response.status}`
+            });
+        }
+
+        const html =
+            await response.text();
+
+        const $ =
+            cheerio.load(html);
+
+        const results = [];
+
+        $(".result").each(
+            (_, element) => {
+
+                if (results.length >= 10) {
+                    return;
+                }
+
+                const title =
+                    $(element)
+                        .find(".result__a")
+                        .first()
+                        .text()
+                        .trim();
+
+                const href =
+                    $(element)
+                        .find(".result__a")
+                        .first()
+                        .attr("href");
+
+                const description =
+                    $(element)
+                        .find(".result__snippet")
+                        .first()
+                        .text()
+                        .trim();
+
+                if (!title || !href) {
+                    return;
+                }
+
+                let url;
+
+                try {
+
+                    url =
+                        new URL(href);
+
+                } catch {
+
+                    return;
+                }
+
+                if (
+                    url.protocol !== "http:" &&
+                    url.protocol !== "https:"
+                ) {
+                    return;
+                }
+
+                results.push({
+                    title,
+                    url: url.href,
+                    description
+                });
+            }
+        );
+
+        res.json({
+            status: "ok",
+            query,
+            count: results.length,
+            results
+        });
+
+    } catch (error) {
+
+        console.error(
+            "[SEARCH ERROR]",
+            error
+        );
+
+        if (
+            error.name ===
+            "AbortError"
+        ) {
+            return res.status(504).json({
+                error:
+                    "Search request timed out"
+            });
+        }
+
+        return res.status(502).json({
+            error:
+                "Search service unavailable"
+        });
+    }
+});
 
 
 // =====================================================
@@ -558,28 +711,59 @@ function rewriteHtml(html, baseUrl) {
 // =====================================================
 
 app.get("/health", (req, res) => {
+
     res.json({
         status: "ok",
-        version: "V18",
-        uptime: Math.round(process.uptime()),
-        sessions: sessions.size,
-        timestamp: new Date().toISOString()
+        version: "V20",
+        uptime:
+            Math.round(
+                process.uptime()
+            ),
+        sessions:
+            sessions.size,
+        timestamp:
+            new Date().toISOString()
     });
 });
 
-
 app.get("/test", (req, res) => {
-    res.send("V18 SERVER IS RUNNING");
+    res.send(
+        "V20 SERVER IS RUNNING"
+    );
 });
 
-
 app.get("/debug", (req, res) => {
+
     res.json({
-        version: "V18",
+        version: "V20",
         node: process.version,
-        uptime: Math.round(process.uptime()),
-        sessions: sessions.size,
-        memory: process.memoryUsage()
+        uptime:
+            Math.round(
+                process.uptime()
+            ),
+        sessions:
+            sessions.size,
+        memory:
+            process.memoryUsage()
+    });
+});
+
+app.get("/api/info", (req, res) => {
+
+    res.json({
+        name: "Simple Web Proxy",
+        version: "V20",
+        features: [
+            "HTTP/HTTPS proxy",
+            "HTML rewriting",
+            "CSS rewriting",
+            "Session cookies",
+            "History",
+            "Bookmarks",
+            "Search results API",
+            "SSRF protection",
+            "Request timeout"
+        ]
     });
 });
 
@@ -589,14 +773,18 @@ app.get("/debug", (req, res) => {
 // =====================================================
 
 app.get("/api/session", (req, res) => {
-    const session = getOrCreateSession(
-        req,
-        res
-    );
+
+    const session =
+        getOrCreateSession(
+            req,
+            res
+        );
 
     res.json({
-        history: session.history,
-        bookmarks: session.bookmarks
+        history:
+            session.history,
+        bookmarks:
+            session.bookmarks
     });
 });
 
@@ -606,12 +794,17 @@ app.get("/api/session", (req, res) => {
 // =====================================================
 
 app.post("/api/bookmark", (req, res) => {
-    const session = getOrCreateSession(
-        req,
-        res
-    );
 
-    const { url, title } = req.body;
+    const session =
+        getOrCreateSession(
+            req,
+            res
+        );
+
+    const {
+        url,
+        title
+    } = req.body;
 
     if (!url) {
         return res.status(400).json({
@@ -627,59 +820,8 @@ app.post("/api/bookmark", (req, res) => {
 
     res.json({
         status: "ok",
-        bookmarks: session.bookmarks
-    });
-});
-
-
-// =====================================================
-// SEARCH API
-// =====================================================
-
-app.get("/api/search", (req, res) => {
-    const query =
-        String(req.query.q || "").trim();
-
-    if (!query) {
-        return res.status(400).json({
-            error: "Missing search query"
-        });
-    }
-
-    const url =
-        "https://www.google.com/search?q=" +
-        encodeURIComponent(query);
-
-    res.json({
-        status: "ok",
-        query,
-        url
-    });
-});
-
-
-// =====================================================
-// PROXY INFO API
-// =====================================================
-
-app.get("/api/info", (req, res) => {
-    res.json({
-        name: "Simple Web Proxy",
-        version: "V18",
-        features: [
-            "HTTP/HTTPS fetching",
-            "HTML rewriting",
-            "CSS rewriting",
-            "Session cookies",
-            "History",
-            "Bookmarks",
-            "SSRF protection",
-            "Request timeout"
-        ],
-        limits: {
-            maxUrlLength: MAX_URL_LENGTH,
-            timeoutMs: REQUEST_TIMEOUT
-        }
+        bookmarks:
+            session.bookmarks
     });
 });
 
@@ -690,7 +832,8 @@ app.get("/api/info", (req, res) => {
 
 app.get("/proxy", async (req, res) => {
 
-    const target = req.query.url;
+    const target =
+        req.query.url;
 
     if (!target) {
         return res.status(400).send(
@@ -710,9 +853,12 @@ app.get("/proxy", async (req, res) => {
     let targetUrl;
 
     try {
-        targetUrl = new URL(target);
+
+        targetUrl =
+            new URL(target);
 
     } catch {
+
         return res.status(400).send(
             "Invalid URL"
         );
@@ -728,7 +874,9 @@ app.get("/proxy", async (req, res) => {
     }
 
     if (
-        !(await isSafeTarget(targetUrl))
+        !(await isSafeTarget(
+            targetUrl
+        ))
     ) {
         return res.status(403).send(
             "Target address is not allowed"
@@ -741,7 +889,8 @@ app.get("/proxy", async (req, res) => {
             res
         );
 
-    const startTime = Date.now();
+    const startTime =
+        Date.now();
 
     try {
 
@@ -757,7 +906,9 @@ app.get("/proxy", async (req, res) => {
             );
 
         const finalUrl =
-            new URL(response.url);
+            new URL(
+                response.url
+            );
 
         const setCookies =
             typeof response.headers.getSetCookie ===
@@ -779,33 +930,27 @@ app.get("/proxy", async (req, res) => {
             response.status
         );
 
-        console.log(
-            "Response time:",
-            responseTime + "ms"
-        );
-
         addHistory(
             session,
             finalUrl.href,
             response.status
         );
 
-
         if (!response.ok) {
 
             return res
-                .status(response.status)
+                .status(
+                    response.status
+                )
                 .send(
                     `Target returned HTTP ${response.status}`
                 );
         }
 
-
         const contentType =
             response.headers.get(
                 "content-type"
             ) || "";
-
 
         if (
             contentType.includes(
@@ -829,7 +974,7 @@ app.get("/proxy", async (req, res) => {
 
             res.setHeader(
                 "X-Proxy-Version",
-                "V18"
+                "V20"
             );
 
             res.setHeader(
@@ -841,7 +986,6 @@ app.get("/proxy", async (req, res) => {
                 rewritten
             );
         }
-
 
         if (
             contentType.includes(
@@ -868,13 +1012,13 @@ app.get("/proxy", async (req, res) => {
             );
         }
 
-
         const buffer =
             Buffer.from(
                 await response.arrayBuffer()
             );
 
         if (contentType) {
+
             res.setHeader(
                 "Content-Type",
                 contentType
@@ -883,7 +1027,7 @@ app.get("/proxy", async (req, res) => {
 
         res.setHeader(
             "X-Proxy-Version",
-            "V18"
+            "V20"
         );
 
         return res.send(
@@ -922,6 +1066,7 @@ app.get("/proxy", async (req, res) => {
 // =====================================================
 
 app.use((req, res) => {
+
     res.status(404).json({
         error: "Route not found",
         path: req.path
@@ -933,8 +1078,12 @@ app.use((req, res) => {
 // START
 // =====================================================
 
-app.listen(PORT, () => {
-    console.log(
-        `V18 server running on port ${PORT}`
-    );
-});
+app.listen(
+    PORT,
+    () => {
+
+        console.log(
+            `V20 server running on port ${PORT}`
+        );
+    }
+);
