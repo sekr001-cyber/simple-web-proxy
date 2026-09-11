@@ -42,7 +42,7 @@ function createSession() {
 
 
 // =====================================================
-// COOKIE / SESSION
+// COOKIES / SESSION
 // =====================================================
 
 function parseCookies(header) {
@@ -55,7 +55,9 @@ function parseCookies(header) {
     for (const part of header.split(";")) {
         const index = part.indexOf("=");
 
-        if (index === -1) continue;
+        if (index === -1) {
+            continue;
+        }
 
         const name = part.substring(0, index).trim();
         const value = part.substring(index + 1).trim();
@@ -138,7 +140,9 @@ function storeTargetCookies(session, hostname, setCookieHeaders) {
 
         const index = firstPart.indexOf("=");
 
-        if (index === -1) continue;
+        if (index === -1) {
+            continue;
+        }
 
         const name = firstPart.substring(0, index).trim();
         const value = firstPart.substring(index + 1).trim();
@@ -230,7 +234,7 @@ function makeAbsolute(value, baseUrl) {
 
 
 // =====================================================
-// PRIVATE NETWORK PROTECTION
+// SSRF PROTECTION
 // =====================================================
 
 function isPrivateIPv4(ip) {
@@ -266,7 +270,7 @@ function isPrivateIPv6(ip) {
 
 
 async function isSafeTarget(url) {
-    const hostname = url.hostname;
+    const hostname = url.hostname.toLowerCase();
 
     if (
         hostname === "localhost" ||
@@ -288,7 +292,9 @@ async function isSafeTarget(url) {
     try {
         const addresses = await dns.lookup(
             hostname,
-            { all: true }
+            {
+                all: true
+            }
         );
 
         for (const address of addresses) {
@@ -397,7 +403,6 @@ function rewriteHtml(html, baseUrl) {
     $("base").remove();
 
 
-    // Links
     $("a[href]").each((_, element) => {
         const value = $(element).attr("href");
 
@@ -415,7 +420,6 @@ function rewriteHtml(html, baseUrl) {
     });
 
 
-    // Images / media
     $(
         "img[src]," +
         "video[src]," +
@@ -439,7 +443,6 @@ function rewriteHtml(html, baseUrl) {
     });
 
 
-    // srcset
     $("[srcset]").each((_, element) => {
         const srcset = $(element).attr("srcset");
 
@@ -481,7 +484,6 @@ function rewriteHtml(html, baseUrl) {
     });
 
 
-    // Scripts
     $("script[src]").each((_, element) => {
         const value = $(element).attr("src");
 
@@ -499,7 +501,6 @@ function rewriteHtml(html, baseUrl) {
     });
 
 
-    // CSS
     $("link[href]").each((_, element) => {
         const value = $(element).attr("href");
 
@@ -517,7 +518,6 @@ function rewriteHtml(html, baseUrl) {
     });
 
 
-    // Forms
     $("form[action]").each((_, element) => {
         const value = $(element).attr("action");
 
@@ -535,7 +535,6 @@ function rewriteHtml(html, baseUrl) {
     });
 
 
-    // Inline CSS
     $("[style]").each((_, element) => {
         const style = $(element).attr("style");
 
@@ -555,13 +554,13 @@ function rewriteHtml(html, baseUrl) {
 
 
 // =====================================================
-// HOME / HEALTH
+// HEALTH
 // =====================================================
 
 app.get("/health", (req, res) => {
     res.json({
         status: "ok",
-        version: "V17",
+        version: "V18",
         uptime: Math.round(process.uptime()),
         sessions: sessions.size,
         timestamp: new Date().toISOString()
@@ -570,13 +569,13 @@ app.get("/health", (req, res) => {
 
 
 app.get("/test", (req, res) => {
-    res.send("V17 SERVER IS RUNNING");
+    res.send("V18 SERVER IS RUNNING");
 });
 
 
 app.get("/debug", (req, res) => {
     res.json({
-        version: "V17",
+        version: "V18",
         node: process.version,
         uptime: Math.round(process.uptime()),
         sessions: sessions.size,
@@ -634,31 +633,54 @@ app.post("/api/bookmark", (req, res) => {
 
 
 // =====================================================
-// SEARCH
+// SEARCH API
 // =====================================================
 
-app.get("/search", (req, res) => {
-
+app.get("/api/search", (req, res) => {
     const query =
         String(req.query.q || "").trim();
 
     if (!query) {
-        return res.status(400).send(
-            "Missing search query"
-        );
+        return res.status(400).json({
+            error: "Missing search query"
+        });
     }
 
-    /*
-     * Search is opened directly in the user's browser.
-     * This avoids sending Google through our proxy,
-     * which can result in 403 responses.
-     */
-
-    const searchUrl =
+    const url =
         "https://www.google.com/search?q=" +
         encodeURIComponent(query);
 
-    res.redirect(searchUrl);
+    res.json({
+        status: "ok",
+        query,
+        url
+    });
+});
+
+
+// =====================================================
+// PROXY INFO API
+// =====================================================
+
+app.get("/api/info", (req, res) => {
+    res.json({
+        name: "Simple Web Proxy",
+        version: "V18",
+        features: [
+            "HTTP/HTTPS fetching",
+            "HTML rewriting",
+            "CSS rewriting",
+            "Session cookies",
+            "History",
+            "Bookmarks",
+            "SSRF protection",
+            "Request timeout"
+        ],
+        limits: {
+            maxUrlLength: MAX_URL_LENGTH,
+            timeoutMs: REQUEST_TIMEOUT
+        }
+    });
 });
 
 
@@ -769,10 +791,6 @@ app.get("/proxy", async (req, res) => {
         );
 
 
-        // ---------------------------------------------
-        // Upstream error
-        // ---------------------------------------------
-
         if (!response.ok) {
 
             return res
@@ -788,10 +806,6 @@ app.get("/proxy", async (req, res) => {
                 "content-type"
             ) || "";
 
-
-        // ---------------------------------------------
-        // HTML
-        // ---------------------------------------------
 
         if (
             contentType.includes(
@@ -815,7 +829,7 @@ app.get("/proxy", async (req, res) => {
 
             res.setHeader(
                 "X-Proxy-Version",
-                "V17"
+                "V18"
             );
 
             res.setHeader(
@@ -828,10 +842,6 @@ app.get("/proxy", async (req, res) => {
             );
         }
 
-
-        // ---------------------------------------------
-        // CSS
-        // ---------------------------------------------
 
         if (
             contentType.includes(
@@ -859,10 +869,6 @@ app.get("/proxy", async (req, res) => {
         }
 
 
-        // ---------------------------------------------
-        // Everything else
-        // ---------------------------------------------
-
         const buffer =
             Buffer.from(
                 await response.arrayBuffer()
@@ -877,7 +883,7 @@ app.get("/proxy", async (req, res) => {
 
         res.setHeader(
             "X-Proxy-Version",
-            "V17"
+            "V18"
         );
 
         return res.send(
@@ -929,6 +935,6 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
     console.log(
-        `V17 server running on port ${PORT}`
+        `V18 server running on port ${PORT}`
     );
 });
